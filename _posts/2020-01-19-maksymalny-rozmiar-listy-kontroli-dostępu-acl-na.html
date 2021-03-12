@@ -1,0 +1,48 @@
+---
+layout: post
+title: Maksymalny rozmiar listy kontroli dostępu (ACL) na obiektach katalogu Active
+  Directory
+date: '2020-01-19T21:35:46+01:00'
+tags:
+- ACL
+- ACE
+- access control list
+- SDDL
+- windowserver
+- activedirectory
+tumblr_url: https://blog.pfe.academy/post/190349651648/maksymalny-rozmiar-listy-kontroli-dost%C4%99pu-acl-na
+---
+<p>Wszystkie obiekty w usłudze Active Directory i wszystkie dające się zabezpieczyć obiekty na komputerze lokalnym lub w sieci posiadają tzw. deskryptory zabezpieczeń, które pomagają kontrolować dostęp do obiektów. Deskryptory zabezpieczeń zawierają informacje o tym, kto jest właścicielem obiektu (owner), kto może uzyskać do niego dostęp i w jaki sposób oraz jakie są zasady audytowania dostępu.
+</p><p>Deskryptory zabezpieczeń obiektu zawierają <a href="https://docs.microsoft.com/en-us/windows/win32/secauthz/access-control-lists">listy kontroli dostępu</a> (access-contol list, ACL) opisujące wszystkie uprawnienia zabezpieczeń, które dotyczą tego obiektu. Co do zasady deskryptory mogą zawierać dwa rodzaje list ACL:
+</p><ul><li>Arbitralna lista kontroli dostępu (discretionary access control list, DACL), które identyfikuje użytkowników i grupy, którym zezwala się lub odmawia dostępu;
+ </li><li>Systemowa lista kontroli dostępu (system access control list, SACL), która kontroluje sposób audytowania dostępu.
+ </li></ul><p>Ten model kontroli dostępu może być stosowany do zabezpieczania jednostkowych obiektów takich jak pliki i foldery, obiektów Active Directory, kluczy rejestru, drukarek i innych urządzeń, portów, usług, procesów i wątków. Granularności ustawień pozwala elastycznie dostosować zabezpieczenia do wymagań organizacji, wydeloegować uprawnienia do obiektów oraz ich atrybutów.
+</p><p>Nie ma różny bez kolców, mechanizm ma ograniczenia pojemnościowe oraz nie jest specjalnie wygodny w utrzymaniu. Dzisiaj na tapetę weźmy ograniczenia rozmiaru.
+</p><!-- more --><p><i>The number of bytes of memory allocated for the ACL. The size of an ACL varies with the number and size of its ACEs. The maximum size of an ACL is 64K, or approximately 1,820 ACEs, depending on the size of the ACEs. However, for performance reasons, the maximum size is not practical, it will vary from 1820 to 2000.</i><br/>Źródło: <a href="http://technet.microsoft.com/en-us/library/cc781716.aspx">How Security Descriptors and Access Control Lists Work</a>  </p><p><i>The maximum size for an ACL, including its ACEs, is 64 KB (Reference: <a href="http://msdn2.microsoft.com/en-us/library/Aa374931.aspx">http://msdn2.microsoft.com/en-us/library/Aa374931.aspx</a> )<br/>It’s about the 64KB ACL size limit of Windows. It stands on every object supporting ACL</i><br/>Źródło: <a href="http://support.microsoft.com/kb/166348">Maximum number of ACEs in an ACL</a> </p><p>Jeśli jest ograniczenie to trzeba się zastanowić nad dwiema rzeczami. Po pierwsze, czy da się przekroczyć opisany limit (a zatem czy jest on zablokowany i narzędzie zwróci błąd przy przekroczeniu rozmiaru) oraz co się dzieje, gdy zostanie przekraczony (jeśli narzędzie nie blokuje zmian powyżej limitu)? Po drugie czy i jak można monitorować wielkość list ACL?</p><figure data-orig-width="964" data-orig-height="411" class="tmblr-full"><img src="https://64.media.tumblr.com/fe6a9a507c7c805d5cffb0ace7908cb1/13f112445d187bbd-da/s540x810/9bc765b98fc11f4fe3f65dca6a210366078eb057.png" alt="image" data-orig-width="964" data-orig-height="411"/></figure><p><i>Microsoft, a nie mógłbyś precyzyjnie określić liczbę wpisów w ACL? I ile to jest 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+„w przybliżeniu 1820”? </i>Nie da rady, bo poszczególne wpisy (access control entry, ACE) różnią się długością, w zależności od ustawień. <br/></p><figure data-orig-width="1207" data-orig-height="602" class="tmblr-full"><img src="https://64.media.tumblr.com/7ce5c7165384c5718856a5c032210885/13f112445d187bbd-17/s540x810/5d6aeed6f2637459712ff4c5668f9f57b5b19d31.png" alt="image" data-orig-width="1207" data-orig-height="602"/></figure><p>Zastanówmy się, więc jak precyzyjnie zmierzyć rozmiar listy, we właściwościach obietków zobaczymy zinterpretowaną listę (nazwy podmiotów (użytkownicy, grupy, komputery) i ich uprawnienia). </p><h2>Jak zmierzyć rozmiar listy kontroli dostępu ACL?</h2><p>Pomysł pierwszy, zrzućmy listę do pliku i sprawdźmy jego rozmiar. W tym celu zrzućmy ACL za pomocą programu icacls. </p><p class="code">icacls C:\Scripts /save C:\Temp\AclFile.txt /T</p><figure data-orig-width="859" data-orig-height="447" class="tmblr-full"><img src="https://64.media.tumblr.com/37bfbf902a2b3f7d3de8c55070c09f45/13f112445d187bbd-8f/s540x810/b46379bdc42dd345fa1f83b10017722d65d5bd7a.png" alt="image" data-orig-width="859" data-orig-height="447"/></figure><p>Następnie sprawdźmy rozmiar pliku. </p><p class="code">Write-Host((Get-Item &ldquo;C:\Temp\AclFile.txt&rdquo;).length/1KB)</p><figure data-orig-width="886" data-orig-height="272" class="tmblr-full"><img src="https://64.media.tumblr.com/452aee280e40bb32e9ef9cb9ed64e905/13f112445d187bbd-79/s540x810/1eaa444ae05d0b76e3e61e20dfe2f6f93cc0229e.png" alt="image" data-orig-width="886" data-orig-height="272"/></figure><p>Przyznacie, że w przypadku plików i folderów sprawa jest nieskomplikowana i bez trudnu można by to zautomatyzować (jeśli zajdzie taka potrzeba). </p><p>A co właściwie zapisało się w pliku? Jak wygląda lista i w jakim formacie icacls zapisał dane do pliku?</p><figure data-orig-width="938" data-orig-height="490" class="tmblr-full"><img src="https://64.media.tumblr.com/cc1953bd51205ad50c743d11b68dcfe8/13f112445d187bbd-02/s540x810/26a0d6d3076b93829c59824b2ce45dc9f262d2da.png" alt="image" data-orig-width="938" data-orig-height="490"/></figure><p>Powyższy format zapisu to <a href="https://docs.microsoft.com/en-us/windows/win32/secauthz/security-descriptor-definition-language">Security Descriptor Definition Language (SDDL)</a>. Mało czytelny, ale skondensowany. I o to chodzi, gdy ma się „tylko” 64k miejsca. Rzućmy jeszcze okiem na <a href="https://docs.microsoft.com/en-us/windows/win32/secauthz/ace-strings">ACE strings</a> (jeden z formatów za pomocą których wyświetlane są listy ACL w PowerShell). </p><p class="code">(Get-Acl -Path &ldquo;C:\Scripts");(Get-Acl -Path &quot;C:\Scripts").Access</p><figure data-orig-width="857" data-orig-height="351" class="tmblr-full"><img src="https://64.media.tumblr.com/8caa5bbfa653458152b310fa60de9fa8/13f112445d187bbd-bb/s540x810/eed6fe4769c980dadd0e1953927db34b98eeef3b.png" alt="image" data-orig-width="857" data-orig-height="351"/></figure><p>Następnie analogicznie dla obietków katalogu Active Directory. </p><p class="code">Get-Acl -Path &quot;AD:CN=Domain Users,CN=Users,DC=pfe,DC=academy&rdquo; | Format-List -Property PSPath,Sddl</p><figure data-orig-width="861" data-orig-height="409" class="tmblr-full"><img src="https://64.media.tumblr.com/bd0a04f88c2b9673c39fb434a1081600/13f112445d187bbd-dd/s540x810/63b6147af1a2bd88f5b4eda555833053ba4c418f.png" alt="image" data-orig-width="861" data-orig-height="409"/></figure><p>Jeśli przyjmiemy, że przy kodowaniu Win-1250, jeden znak zajmuje 8 bitów, czyli 1 bajt, to możemy w prosty sposób przeliczyć wielkość ACL.</p><p class="code">((Get-Acl -Path &ldquo;AD:CN=Domain Users,CN=Users,DC=pfe,DC=academy&rdquo;).Sddl | Measure-Object -Character).Characters*8/1kb</p><figure data-orig-width="858" data-orig-height="110" class="tmblr-full"><img src="https://64.media.tumblr.com/b795e410714bc43eca66e019dbf8f31a/13f112445d187bbd-10/s540x810/45c76e7e78a0e8a67bd026d90c680be1cbe74ea1.png" alt="image" data-orig-width="858" data-orig-height="110"/></figure><p>Udanych pomiarów w waszych środowiskach! Na koniec jeszcze kilka odnośników do materiałów źródłówych:</p><ol><li><a href="https://docs.microsoft.com/en-us/archive/blogs/arvind7in/what-is-64k-acl-limit">What is 64k ACL limit</a>. </li><li><a href="https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2003/cc781716(v=ws.10)?redirectedfrom=MSDN">How Security Descriptors and Access Control Lists Work</a></li><li><a href="https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-acl?redirectedfrom=MSDN">
+
+ACL structure</a></li><li><a href="https://support.microsoft.com/en-us/help/914392/best-practices-and-guidance-for-writers-of-service-discretionary-acces">
+
+Best practices and guidance for writers of service discretionary access control lists</a></li><li><a href="https://docs.microsoft.com/en-us/windows/win32/secauthz/access-control-lists">
+
+Access Control Lists</a></li><li><a href="https://docs.microsoft.com/en-us/windows/win32/secauthz/security-descriptor-definition-language">
+
+Security Descriptor Definition Language</a></li><li><a href="https://docs.microsoft.com/en-us/windows/win32/secauthz/ace-strings">
+
+ACE Strings</a></li></ol>

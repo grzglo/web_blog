@@ -1,0 +1,52 @@
+---
+layout: post
+title: Synchronizacja tożsamości z rozłączonych środowisk AD do Azure AD
+date: '2020-01-02T19:23:24+01:00'
+tags:
+- azure
+- activedirectory
+- synchronization
+- Azure AD Connect cloud provisioning
+tumblr_url: https://blog.pfe.academy/post/190019798518/synchronizacja-to%C5%BCsamo%C5%9Bci-z-roz%C5%82%C4%85czonych-%C5%9Brodowisk
+---
+<p>Na początku grudnia, <a>Alex Simons </a>opublikował wpis na <a href="https://techcommunity.microsoft.com/t5/azure-active-directory-identity/bg-p/Identity">Azure Active Directory Identity Blog</a> opisujący aprowizację (Managed provisioning). Warto zwrócić uwagę na możliwości dostarczane w ramach nowej 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+funkcjonalności 
+
+
+
+i sugerowane scenariusze użycia. </p><p>Jeśli pracujesz w dużym środowisku, najprawdopodobniej wiesz jak wiele wyzwań stwarza zakup, połączenie lub przejęcie innej organizacji (oraz jej środowiska IT, w szczególności katalogu użytkowników oraz usług).</p><p>Rozważasz migrację lub (przynajmniej czasowe) współistnienie środowisk, zasady dostępu, przepuszczenia komunikacji sieciowej, kierunki relacji zaufania oraz licencjonowanie. To, co w lokalnych środowiskach on-premises może zająć nawet kilka lat, w chmurze udaje się osiągnąć w znacznie krótszym czasie i to z wielu powodów, z których najważniejszymi wydają mi się być:<br/></p><ul><li>większa (względem wieloletnich środowisk on-premises) homogeniczność oprogramowania;</li><li>konwergencja rozwiązań technologicznych oraz protokołów;</li><li>mniejszy rozmiar środowiska (statystycznie chmura w polskim przedsiębiorstwie to wciąż dodatek lub hybryda, a nie główne lub równoważne środowisko);</li><li>brak wymogu kompatybilności z przestarzałymi systemami (te zwykle zostają w on-premises i z czasem tracą na znaczeniu, aby ostatecznie zostać wygaszone).</li></ul><p>Azure AD Connect <a href="https://docs.microsoft.com/en-us/azure/active-directory/hybrid/reference-connect-version-history">od początku</a> obsługuje możliwość synchronizacji kont z wielu lasów Active Directory, choć nie <a href="https://docs.microsoft.com/en-us/azure/active-directory/hybrid/plan-connect-topologies">wszystkie scenariusze takiej synchronizacji są wspierane</a> (z uwagi na możliwe problemy). Większość organizacji jest w stanie zsynchronizować wiele katalogów użytkowników do pojedynczego tenanta. </p><figure data-orig-width="1026" data-orig-height="339" class="tmblr-full"><img src="https://64.media.tumblr.com/d31a883066010a5fe8b5800a1ab6a861/37ad001044867aa5-d8/s540x810/57526a72ec17ce56bbae42c11757f78934ec63c9.png" alt="image" data-orig-width="1026" data-orig-height="339"/></figure><p>Dzięki usłudze aprowizacji, administratorzy mogą zaopatrywać katalogi AAD w użytkowników z katalogów AD z wielu lasów Active Directory ze środowisk, które z różnych względów są odizolowane od funkcjonującej infrastruktury usług synchronizacyjnych Azure AD Connect. Jednocześnie przesuwając ciężar synchronizacji z AD do Azure AD za pomocą lekkich agentów instalowanych w źródłowym środowisku. </p><h2>Jakie z tego korzyści? Kiedy stosować aprowizację?</h2><ul><li>Aprowizacja z rozłączonych lasów AD do Azure AD 
+
+–
+
+ Rozłączone lasy mogą być pozostałością przejęć lub podziałów w przedsiębiorstwie, a nawet obsługi zewnętrznych lokacji i oddziałów. Niezależnie od powodu, aprowizacja w chmurze pozwala na szybką integrację katalogów z Azure AD.</li><li>Zmniejsza nakłady pracy i zużycie zasobów on-premises 
+
+–
+
+Agent aprowizacji ma niewielkie wymagania i szerokie możliwości synchronizacji (konfiguracja i przetwarzanie w chmurze).</li><li>Wysoką dostępność 
+
+–
+
+Można wdrożyć wielu agentów aprowizacji, aby zapewnić ich redundancję, w szczególności dla synchronizacji skrótów haseł (Password Hash Sync, PHS).<br/></li></ul><h2>Czego nie załatwia aprowizacja? Kiedy nie stosować?</h2><ul><li>Aprowizacja nie może być stosowana równolegle z usługami synchronizacji Azure AD Connect – Konkretny las Active Directory może dostarczać użytkowników tylko jedną metodą. Nie jest wspierana synchronizacja za pomocą obu rozwiązań, podobnie z resztą, jak nie wspierane jest stosowanie dwóch lub więcej aktywnych serwerów Azure AD Connect.  </li><li>Nie należy stosować aprowizacji jako zapasowe rozwiązanie w scenariuszach odzyskiwania (Disaster Recovery Procedure, DRP) lub utrzymania ciągłości działania dla usług synchronizacji
+
+– W celu zwiększenia dostępności usług synchronizacji powinno się wykorzystywać architekturę z <a href="https://docs.microsoft.com/en-us/azure/active-directory/hybrid/how-to-connect-sync-staging-server#staging-mode">serwerami działającymi w trybie zapasowym (staging mode)</a> oraz wysokodostępnościową <a href="https://docs.microsoft.com/en-us/azure/active-directory/hybrid/how-to-connect-install-move-db">instancję serwera bazodanowego</a>.  </li><li>Aprowizacja nie nadaje się do testowania nowych reguł synchronizacji Azure AD Connect – Zmiany w konfiguracji katalogów oraz reguł synchronizacji najlepiej testować w dedykowanym środowisku lub na serwerze działającym w trybie staging.</li><li>Nie ma narzędzia, które automatyzuje migrację reguł z Azure AD Connect. </li></ul><h2>Jakie możliwości daje aprowizacja w chmurze?</h2><ul><li>Synchronizacja użytkowników, w tym filtrowanie po jednostkach organizacyjnych oraz członkostwie w grupie (pilot).</li><li>Synchronizacja skrótów haseł (Password Hash Sync, PHS).</li><li>Koegzystencja z usługami synchronizacji Azure AD Connect Sync, przy czym użytkownik może przynależeć tylko do zakresu jednego narzędzia (synchronizacji albo aprowizacji).</li><li>Obsługa wielu modeli uwierzytelniania, w tym: synchronizacji haseł (PHS), federacji (AD FS) oraz bezproblemowego jednokrotnego logowania (Seamless SSO).</li><li>Rejestrowanie i podgląd zdarzeń.</li><li>Azure Monitor workbooks for provisioning.</li><li>Automatyczna aktualizacja agenta aprowizacji (Auto-upgrade).</li><li>Podstawowe transformacje atrybutów z użycie Microsoft Graph API.</li></ul><h2>Jak skonfigurować aprowizację? I zainstalować agenta?</h2><p>Uruchomienie cloud provisioningu jest procesem dwuetapowym. W pierwszym kroku instaluje się oprogramowanie agenckie na serwerze członkowskim w domenie. Następnie konfiguruje się opcje synchronizacji w portalu Azure.<br/></p><p><b>Krok 1: Pobranie i instalacja agenta aprowizacji.</b></p><p>1. Przed instalacją agenta należy zweryfikować <a href="https://docs.microsoft.com/en-us/azure/active-directory/cloud-provisioning/how-to-prerequisites">wymagania wstępne</a>, w tym:</p><ul><li>Dostęp do konta z uprawnieniami globalnego administratora w docelowym tenancie Azure AD.
+</li><li>Dostępność serwera w lokalnym katalogu AD z Windows Server 2012 R2 lub nowszym.
+</li><li>Dostęp do internetu (konfiguracja zapory ogniowej oraz serwerów pośredniczących).
+</li></ul><p>2. Aby pobrać pakiet instalacyjny należy przejść do Azure AD Provisioning (Preview) i zaakceptować warunki użycia i licencję.</p><figure data-orig-width="1353" data-orig-height="721" class="tmblr-full"><img src="https://64.media.tumblr.com/f2b094608cd59235108052afd08dde76/37ad001044867aa5-b4/s540x810/bfc146d4113e1f251f034ebdc989b40f93615b73.png" alt="image" data-orig-width="1353" data-orig-height="721"/></figure><figure data-orig-width="1913" data-orig-height="501" class="tmblr-full"><img src="https://64.media.tumblr.com/daca84ce923dde369544ed6326f1f73d/37ad001044867aa5-a6/s540x810/6702cfa9005315654db932b19d877e75ab34ac45.png" alt="image" data-orig-width="1913" data-orig-height="501"/></figure><p>Instalacja rozpakowuje oprogramowanie i automatycznie uruchamia kreatora pierwszego uruchomienia. </p><figure data-orig-width="400" data-orig-height="251" class="tmblr-full"><img src="https://64.media.tumblr.com/ec48a1f4c6056308d708bcf9d5cbc1aa/37ad001044867aa5-87/s540x810/bfce06323615de81e6d9ea5b0fef885b60afcc9e.png" alt="image" data-orig-width="400" data-orig-height="251"/></figure><p>W którym wskazujemy nazwę tenanta oraz zaopatrujemy agenta w odpowiednie uprawnienia w celu skonfigurowania komunikacji. </p><figure data-orig-width="600" data-orig-height="421" class="tmblr-full"><img src="https://64.media.tumblr.com/5a5f9aafad0bbea2afbab657080e8d7e/37ad001044867aa5-d5/s540x810/86cd82e85ac11b19d20b8073866f8101d1bbfc47.png" alt="image" data-orig-width="600" data-orig-height="421"/></figure><p><b>Krok 2: Konfiguracja aprowizacji.</b></p><p>1. W sekcji Azure AD Connect należy przejść do Manage provisioning (preview).</p><p>2. Następnie zainicjować nową konfigurację za pomocą opcji New configuration.
+</p><figure data-orig-width="999" data-orig-height="570" class="tmblr-full"><img src="https://64.media.tumblr.com/68cbf6a732fce79557e60afdebb6afd3/37ad001044867aa5-83/s540x810/0d7814fe636d9e2d52f55d06332ee09cb439b6ab.png" alt="image" data-orig-width="999" data-orig-height="570"/></figure><p>3. Wynikową konfigurację należy zatwierdzić przesuwając opcję w stan Enable.
+</p><p>Aprowizacja użytkowników będzie wykonywana co 2 minuty zgodnie z zachowaną konfiguracją. Dodatkowe informacje znajdują się w artykule <a href="https://aka.ms/cptutorials">Azure AD Connect cloud provisioning tutorials</a>. Przed wdrożeniem zachęcam do zapoznania się z całą dokumentacją online, <a href="https://aka.ms/cpfeaturecomparison">Azure AD Connect cloud provisioning</a>.</p><p>Jeśli macie pomysły na ulepszenia lub marzy wam się jakaś niedostępna (jeszcze) opcja możecie przesyłać propozycje w ramach <a href="https://feedback.azure.com/forums/169401-azure-active-directory/filters/top?category_id=160599">Azure AD UserVoice feedback forum</a>.<br/></p><p>Źródło i część zrzutów ekranu: <a href="https://techcommunity.microsoft.com/t5/azure-active-directory-identity/bring-identities-from-disconnected-ads-into-azure-ad-with-just-a/ba-p/827835">Bring identities from disconnected ADs into Azure AD with just a few clicks!</a></p>

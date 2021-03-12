@@ -1,0 +1,354 @@
+---
+layout: post
+title: Jak konfigurować atrybut SameSite w ciasteczkach?
+date: '2020-01-27T10:30:56+01:00'
+tags:
+- cookies
+- ciasteczka
+- samesite
+- edge
+- chrome
+- chromium
+- firefox
+- adfs
+- federation
+- azure
+- webview
+tumblr_url: https://blog.pfe.academy/post/190492750608/jak-konfigurowa%C4%87-atrybut-samesite-w-ciasteczka
+---
+<p>W poprzedniej części serii poświęconej zmianom w obsłudze ciasteczek pokazałem, <a href="https://blog.pfe.academy/post/190462924468/o-co-chodzi-w-samesite-w-ciasteczkach">o co chodzi w SameSite w ciasteczkach</a>, skrótowo wyjaśniając co to są ciasteczka, jak konfigurowane i instalowane są 
+
+ pliki cookies oraz jak są obsługiwane przez przeglądarki.</p><p>Dzisiaj chcę pokazać, w jaki sposób przeglądarki oparte na Chromium implementują wytyczne <a href="https://t.umblr.com/redirect?z=https%3A%2F%2Ftools.ietf.org%2Fhtml%2Fdraft-ietf-httpbis-rfc6265bis-03%23section-4.1&amp;t=OTNlODYzY2VjZDA5MTQyNDY1NzU4YmE2Y2ZkMDJiNTRlZDQ4Njc0OCxhRHdQU1B2cw%3D%3D&amp;b=t%3APybnWjTV_oe3w5Izg-7VmQ&amp;p=https%3A%2F%2Fblog.pfe.academy%2Fpost%2F190462924468%2Fo-co-chodzi-w-samesite-w-ciasteczkach&amp;m=0">RFC6265bis</a> oraz podzielić się przepisami na 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+„udane ciasteczka”. </p><p>Zacznijmy od tego, że zmiany pojawią się w stabilnych wydaniach najpopularniejszych przeglądarek już za kilka dni. W Google Chrome w wersji 80 zaplanowanej na 4 lutego 2020. Microsoft Edge około tygodnia później (15 stycznia udostępniono pierwszą wersję stabilną, nie ma jeszcze oficjalnego terminarza wydań, ale dotychczasowa praktyka pokazuje przynajmniej kilkudniowe opóźnienie względem Chromium). W Firefoksie domyślne ustawienia raczej nie zostaną zmienione wcześniej niż wraz z wydaniem Firefox ESR 
+
+68.6, a więc 6 marca.</p><figure data-orig-width="1874" data-orig-height="357" class="tmblr-full"><img src="https://64.media.tumblr.com/dab8228060df0d9798ff33d4e54730c8/e87d41ca6a8065e7-0c/s540x810/6e41362bad43e3fb3f11f83f592d0c98b2f7469f.png" alt="image" data-orig-width="1874" data-orig-height="357"/></figure><!-- more --><p>Zmiany dotyczące sposobu obsługi ciasteczek zostały opisane w dwóch artykułach:</p><ol><li><a href="https://chromestatus.com/feature/5088147346030592">Cookies default to SameSite=Lax</a><br/><br/><i>
+
+Treat cookies as SameSite=Lax by default if no SameSite attribute is specified. Developers are still able to opt-in to the status quo of unrestricted use by explicitly asserting SameSite=None.</i>
+
+<br/><br/><i>
+
+Note: Chrome will make an exception for cookies set without a SameSite attribute less than 2 minutes ago. Such cookies will also be sent with non-idempotent (e.g. POST) top-level cross-site requests despite normal SameSite=Lax cookies requiring top-level cross-site requests to have a safe (e.g. GET) HTTP method. Support for this intervention (&ldquo;Lax + POST&rdquo;) will be removed in the future.
+
+</i><br/><br/></li><li><a href="https://chromestatus.com/feature/5633521622188032">Reject insecure SameSite=None cookies</a><br/><br/><i>
+
+Deprecate and remove the use of cookies with the SameSite=None attribute but without the Secure attribute. Any cookie that requests SameSite=None but is not marked Secure will be rejected.</i>
+
+<br/></li></ol><p>Ciasteczka bez atrybutu SameSite będą domyślnie traktowane jak te z wartością Lax.  Co oznacza, że domyślnym zachowaniem będzie ograniczenie plików cookie tylko do własnych kontekstów. W okresie przejściowym (zanim nowe wymagania zostaną powszechnie zaadoptowane) będzie istniała obsługa opisana jako Lax + POST, dzięki której ciasteczka bez atrybutu SameSite przez 2 minuty od wystawienia będą załączane do 
+
+nieidemopotentnych żądań między domenami najwyższego poziomu.  </p><p>Pliki cookie do użytku w różnych witrynach muszą zawierać SameSite=None; Secure, aby umożliwić włączenie w kontekście strony trzeciej.</p><h2>Scenariusze użycia ciasteczek zewnętrznych lub pomiędzy stronami</h2><p>Istnieje wiele typowych scenariuszy użycia i wzorców, w których pliki cookie muszą być wysyłane w kontekście strony trzeciej. Jeśli stosujecie takie rozwiązania, upewnijcie się, że wydawane lub przekazywane ciasteczka będą na czas zaktualizowane, aby zapewnić prawidłowe działanie usług.</p><h3>Zawartość 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pływających 
+
+
+
+ramek &lt;iframe&gt;</h3><p>Zawartość z innych stron, wyświetlana w pływających ramkach <code>&lt;iframe&gt;</code> wyświetlana jest w kontekście zewnętrznym (third-party). 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Najczęściej 
+
+
+
+są to następujące przypadki użycia:</p><ul><li>Zagnieżdżenie współdzielonych z innych stron materiałów, takich jak wideo, mapy, fragmenty kodu źródłowego oraz wpisy z mediów społecznościowych.</li><li>Widżety z zewnętrznych usług, takich jak systemy mikropłatności, panele 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+dyskusyjne 
+
+
+
+i komentarze, kalendarze lub systemy rezerwacyjne.</li><li>Widżety w postaci przycisków do polecania lub systemy do ochrony przed oszustwami finansowymi. </li></ul><p>Ciasteczka mogą być w tych przykładach wykorzystane do, między innymi, utrzymania stanu sesji, przechowywania ogólnych preferencji, prowadzenia statystyk lub personalizowania treści dla użytkowników posiadających istniejące konta.</p><figure data-orig-width="730" data-orig-height="517" class="tmblr-full"><img src="https://64.media.tumblr.com/c1a9807e110d6a775ec4a1c17461a9ce/e87d41ca6a8065e7-40/s540x810/7678136f4f1cc3a1b92c600279fcb86285b0c354.png" alt="image" data-orig-width="730" data-orig-height="517"/></figure><p>Dodatkowo, treści w ramach typu <code>&lt;iframes&gt;</code> są osadzane także w kontekście stron najwyższego poziomy lub własnym (first-party). Wszystkie ciasteczka dostarczane przez strony w ramkach będą traktowane jako zewnętrzne. Jeśli tworzycie strony, które z założenia mają być zagnieżdżane w innych, a ich 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+funkcjonalność 
+
+
+
+jest zależna od ciasteczek, musicie upewnić się, że są one skonfigurowane do użycia pomiędzy stronami (cross-site) lub opracować 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+mechanizmy 
+
+
+
+zastępcze, które pozwolą na obsługę zawartości bez ciasteczka załączonego w żądaniu.</p><h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+„Niebezpieczne”
+
+
+
+ żądania pomiędzy stronami</h3><p>Określenie 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+„niebezpieczne”
+
+
+
+ budzi pewne obawy, ale odnosi się ono do każdego żądania, które może mieć na celu zmianę stanu. W większość przypadków będą to żądania realizowane <a href="https://pl.wikipedia.org/wiki/POST_(metoda)">metodą POST</a>. Ciasteczka oznaczone jako <code>SameSite=Lax</code> będą przesłane bezpiecznie w żądaniach do stron najwyższego poziomu, np. przy kliknięciu w odnośnik przekierowujący do innej witryny. Jednak żądanie z formularza <code>&lt;form&gt;</code> przesłane metodą POST do innej strony nie będzie zawierać ciasteczek.</p><figure data-orig-width="1005" data-orig-height="579" class="tmblr-full"><img src="https://64.media.tumblr.com/7c611dd4aa3bfc49d2d679b0762bcfeb/e87d41ca6a8065e7-de/s540x810/1f88b375c865563af9e642c26b63d53e40fe7194.png" alt="image" data-orig-width="1005" data-orig-height="579"/></figure><p>Scenariusz (z użyciem formularza), służy do przekierowania użytkownika do zdalnej usługi w celu wykonania pewnych operacji przed powrotem, na przykład przekierowania do 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+zewnętrznego 
+
+
+
+dostawcy tożsamości. Zanim użytkownik opuści witrynę, ustawiane jest ciasteczko zawierające token jednorazowego użytku, który można porównać z powrotnym żądaniem, aby zminimalizować ataki typu <a href="https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html">cross site request forgery (CSRF)</a> (niezorientowanym polecam artykuł <a href="https://sekurak.pl/czym-jest-podatnosc-csrf-cross-site-request-forgery/">Czym jest podatność CSRF?</a>). Jeśli takie żądanie, np. z formularza logowania za pomocą usług federacyjnych AD FS lub Azure (w następnej części cyklu przeanalizujemy przebieg logowania i zobaczymy jak instalowane są ciasteczka przez i po zastosowaniu styczniowych pakietów poprawek dla Windows Server 2016 (<a href="https://support.microsoft.com/en-us/help/4534271/windows-10-update-kb4534271">KB4534271</a>) i Windows Server 2019 (<a href="https://support.microsoft.com/en-us/help/4534273/windows-10-update-kb4534273">KB4534273</a>)), zostanie wysłane za pośrednictwem POST, ciasteczka będą musiały być oflagowane jako <code>SameSite=None; Secure</code>.</p><h3>Zasoby zdalne</h3><p>Żądanie dowolnego rodzaju zasobu zdalnego, przykładowo wczytywanego znacznikami 
+
+<code>&lt;img&gt;</code>, <code>&lt;script&gt;</code> lub innymi, może być zależne od ciasteczek. Szczególnie popularne są tzw. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+„piksele”
+
+
+
+ śledzące i personalizujące treści.</p><p>Dotyczy to również żądań inicjowanych skryptami JavaScript za pomocą funkcji <code>fetch</code> lub <code>XMLHttpRequest</code>. Wywołanie <code>fetch()</code> z parametrem <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch#Sending_a_request_with_credentials_included"><code>credentials: 'include'</code></a> jest idealnym przykładem żądania, w którym oczekujemy załączenia ciasteczka. Dla <code>XMLHttpRequest</code> powinniśmy poszukać wystąpień właściwości <a href="https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/withCredentials"><code>withCredentials</code></a> ustawionych na <code>true</code>. W takich przypadkach, załączenie ciasteczka w żądaniu będzie oczekiwane. A co za tym idzie, takie ciasteczka muszą być skonfigurowane do użycia pomiędzy witrynami (w komunikacji typu cross-site).</p><h3>Treści wyświetlane w WebView</h3><p><a href="https://developer.chrome.com/multidevice/webview/overview">WebView</a> w Androidzie oraz <a href="http://astro.mobify.com/latest/guides/webview-options-in-ios/">WKWebView</a> w iOS, umożliwiają zagnieżdżanie oraz natywną obsługę treści webowych w 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+aplikacjach. Prędzej lub później nowe zasady obsługi ciasteczek zostaną 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+zaimplementowane 
+
+
+
+w bibliotekach WebView. Obecnie Android zezwala na bezpośrednią instalację ciasteczek za pomocą <a href="https://developer.android.com/reference/android/webkit/CookieManager">CookieManager API</a>, a iOS za pomocą 
+
+<a href="https://developer.apple.com/documentation/webkit/wkhttpcookiestore?changes=latest_minor">httpCookieStore</a>. Ciasteczka są wystawiane w nagłówkach HTTP lub za pomocą skryptów JavaScript, wydaje mi się, że warto już teraz dodać atrybut <code>SameSite=None; Secure</code> jeśli mają być stosowane pomiędzy stronami lub 
+
+zewnętrznymi komponentami
+
+osadzonymi w aplikacjach.</p><h2>Jak już dzisiaj zaimplementować <code>SameSite</code>?</h2><p>W przypadku plików cookie, w których są one potrzebne tylko w kontekście własnych, najlepiej oznaczyć je jako <code>SameSite=Lax</code> lub <code>SameSite=Strict</code>, w zależności od potrzeb. Słabszym rozwiązaniem jest zdanie się na implementacje domyślnych zachowań po stronie przeglądarek, bo stwarza to ryzyko niespójnego funkcjonowania aplikacji lub witryny webowej w różnych klientach oraz będzie generowało ostrzeżenia w konsoli.</p><pre><code>Set-Cookie: ciastko_wlasne=wartosc; SameSite=Lax</code></pre><p>Z kolei ciasteczka, które są potrzebne w kontekście zewnętrznych stron, najlepiej oznaczyć jako <code>SameSite=None; Secure</code>. Koniecznie użyjcie obu atrybutów. Jeśli wybierzecie <code>None</code> ale bez dodatkowego parametru <code>Secure</code> ciasteczko zostanie odrzucone. Pozostaje jeszcze kwestia niekompatybilności pomiędzy różnymi przeglądarkami, ale o tym w następnej sekcji.</p><pre><code>Set-Cookie: ciasteczko_zewnetrzne=wartosc; SameSite=None; Secure</code></pre><h3>Obsługa niezgodnych ze standardem klientów</h3><p>Zmiany dotyczące trybu <code>None</code> oraz domyślne zachowanie w przeglądarkach są stosunkowo nowe, co może generować niespójności w obsłudze. Na stronie <a href="https://www.chromium.org/updates/same-site/incompatible-clients">chromium.org</a> udostępniono (stale aktualizowaną) listę znanych problemów. </p><p>Chociaż nie jest to idealne rozwiązanie, istnieją sposoby obejścia problemu braku obsługi nowego trybu w fazie przejściowej, w której niekompatybilne aplikacje zginą lub zostaną dostosowane. Ogólną zasadą jest traktowanie klientów niekompatybilnych jako szczególnego przypadku, nie na odwrót. Nie twórzcie wyjątków dla przeglądarek implementujących nowe zasady.</p><p>Pierwszym sposobem na obejście problemu jest równoległa instalacja ciasteczek w 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+„nowym” i 
+
+„starym” stylu:</p><pre><code>Set-cookie: wazne_ciastko=wartosc; SameSite=None; Secure<br/>Set-cookie: wazne-ciastko-przestarzale=wartosc; Secure</code></pre><p>Przeglądarki stosujące nowsze zachowanie pobiorą ciasteczko z wartością <code>SameSite</code>, podczas gdy niekompatybilne przeglądarki prawdopodobnie je zignorują. Jednak, te przeglądarki, powinny ustawić ciasteczko <code>wazne-ciasteczko-przestarzale</code>.  Podczas przetwarzania dołączonych plików cookie witryna powinna najpierw sprawdzić obecność 
+
+„nowego” ciasteczka, a jeśli nie zostanie znalezione, przełączyć się na 
+
+„starsze”.</p><p>Poniższy przykład pokazuje, jak to zrobić w Node.js, korzystając z <a href="https://expressjs.com/">Express framework</a> oraz metod <a href="https://www.npmjs.com/package/cookie-parser">cookie-parser</a>.</p><pre><code>const express = require('express');<br/>const cp = require('cookie-parser');<br/>const app = express();<br/>app.use(cp());<br/><br/>app.get('/set', (req, res) =&gt; {<br/>  // Ustawienie ciasteczka nowa metoda<br/>  res.cookie('wazne-ciastko', 'wartosc', { sameSite: 'none', secure: true });<br/>  // Ustawienie ciasteczka z taka sama wartoscia stara metoda<br/>  res.cookie('<code>wazne-ciastko</code>-przestarzale', '<code>wartosc</code>', { secure: true });<br/>  res.end();<br/>});<br/><br/>app.get('/', (req, res) =&gt; {<br/>  let cookieVal = null;<br/><br/>  if (req.cookies['<code>wazne-ciastko</code>']) {<br/>    // Najpier sprawdz wartosc nowego ciasteczka<br/>    cookieVal = req.cookies['<code>wazne-ciastko</code>'];<br/>  } else if (req.cookies['<code><code>wazne-ciastko</code>-przestarzale</code>']) {<br/>    // Dopiero jesli nie istnieje sprawdz stare<br/>    cookieVal = req.cookies['<code><code>wazne-ciastko</code>-przestarzale</code>'];<br/>  }<br/><br/>  res.end();<br/>});<br/><br/>app.listen(process.env.PORT);</code></pre><p>Oczywistą wadą powyższego rozwiązania jest produkcja zbędnych plików cookie dla wszystkich przeglądarek, dodatkowo wymaga to wprowadzenia zmian zarówno w momencie ustawienia, jak i odczytu ciasteczka. Takie podejście pozwala obsłużyć wszystkie przeglądarki bez względu na ich zachowanie i zapewnić, że pliki cookie innych firm będą nadal działać tak jak poprzednio.</p><p>Alternatywnie można przed zastosowaniem instrukcji <code>Set-Cookie</code> wykryć używaną przeglądarkę za pomocą user agent string (UA). Na <a href="https://www.chromium.org/updates/same-site/incompatible-clients">liście niekompatybilnych klientów</a> znajdziemy większość popularnych aplikacji, wówczas wystarczy skorzystać z odpowiedniej biblioteki, trzymając się powyższego przykładu w Node.js może to być <a href="https://www.npmjs.com/package/ua-parser-js">ua-parser-js</a>. Lepiej zdać się na gotowe biblioteki do wykrywania UA, żeby nie musieć samodzielnie konstruować wyrażeń regularnych.</p><p>Zaletą tego podejścia jest to, że wymaga tylko jednej zmiany w momencie ustawienia pliku cookie. Niestety wykrywanie funkcjonalności po identyfikatorze UA pachnie <i>Internetem 1.0</i> i w wielu wypadkach może być zawodne. Pamiętajcie też, że obecnie wszyscy udają wszystkich, zresztą sprawdźcie sami na <a href="https://www.whatsmyua.info/">What’s my UA</a>.</p><figure data-orig-width="726" data-orig-height="156" class="tmblr-full"><img src="https://64.media.tumblr.com/ef5ea1e64dd7445641c6feea89c416af/e87d41ca6a8065e7-47/s540x810/2e67d0432bcce8b800f4a6f612e20178592aee27.png" data-orig-width="726" data-orig-height="156" alt="image"/></figure><p>Bez względu na wybraną opcję warto monitorować, jaki jest poziomo korzystania ze starszej 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+metody. A nawet ustawić sobie przypomnienie, aby 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+wycofać 
+
+
+
+obejście, gdy poziomy te spadną poniżej akceptowalnego progu.</p><h2>Obsługa <code>SameSite=None</code> w językach, bibliotekach i frameworkach</h2><p>Większość języków i bibliotek obsługuje atrybut <code>SameSite</code> w ciasteczkach, jednak już <code>SameSite=None</code> jest stosunkowo nowe,co oznacza, że na razie może być konieczne obejście niektórych standardowych zachowań. Są one udokumentowane w repozytorium przykładów
+
+<a href="https://github.com/GoogleChromeLabs/samesite-examples"><code>SameSite</code> na GitHub</a>-ie.</p><h2>Gdzie szukać pomocy?</h2><p>Nie przesadzę stawiając tezę, że ciasteczka są wszędzie. I rzadko zdarza się, aby jakakolwiek strona w pełni kontrolowała tryb ich instalacji i użycia, w szczególności na stronach zewnętrznych i w scenariuszach mieszanych. Jeśli już zderzycie się z problemem, proponuję zacząć poszukiwania pomocy w tych miejscach:</p><ul><li>Zgłoszenie problemu <a href="https://github.com/GoogleChromeLabs/samesite-examples">w repozytorium przykładów </a><a href="https://github.com/GoogleChromeLabs/samesite-examples"><code>SameSite</code> na GitHub</a>.</li><li>Pytanie pod tagiem <a href="https://stackoverflow.com/questions/tagged/samesite">&ldquo;samesite&rdquo; na StackOverflow</a>.</li><li>Jeśli sądzicie, że trafiliście na problem wynikający z implementacji w przeglądarce możecie zgłosić problem na trackerze producenta lub społeczności, np. <a href="https://bit.ly/2lJMd5c">[SameSite cookies] issue</a>.</li></ul><p>Tekst jest częściowo oparty na artykule <a href="https://web.dev/samesite-cookie-recipes/">SameSite cookie recipes</a> autorstwa 
+
+Rowana Merewooda.<br/></p>

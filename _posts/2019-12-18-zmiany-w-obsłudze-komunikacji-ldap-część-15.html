@@ -1,0 +1,51 @@
+---
+layout: post
+title: Zmiany w obsłudze komunikacji LDAP - część 1/5
+date: '2019-12-18T14:52:23+01:00'
+tags:
+- microsoft
+- adds
+- adlds
+- ldap
+- directory service
+- active directory
+tumblr_url: https://blog.pfe.academy/post/189738377893/zmiany-w-obs%C5%82udze-komunikacji-ldap-cz%C4%99%C5%9B%C4%87-15
+---
+<p>W opublikowanym 13 sierpnia 2019
+roku 
+
+biuletynie informacyjnym <a href="https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/ADV190023">ADV190023</a><a href="https://www.tumblr.com/blog/pfeaca/new/text#_ftn1" title="">[1]</a>,
+
+ Microsoft wskazał najnowsze rekomendacje zabezpieczeń dla połączeń protokołu
+LDAP, które mają podnieść bezpieczeństwo komunikacji pomiędzy kontrolerami domeny Active
+Directory oraz klientami usługi. Obok
+rekomendacji zapowiedziana została również poprawka zabezpieczeń dla systemów
+Windows Server, której zastosowanie będzie skutkować zmianą domyślny ustawień
+na zgodne z wytycznymi. </p><p>Microsoft zaleca
+administratorom jak najszybsze wprowadzenie zmian podnoszących poziom
+zabezpieczeń opisanych w powyższym biuletynie manualnie, ponieważ podczas
+korzystania z ustawień domyślnych w systemie Windows istnieje luka zabezpieczeń
+dotycząca podnoszenia uprawnień, która może pozwolić na <a href="https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-sstp/4a6778bc-a4a9-46c6-9120-7493c61f95e5">atak typu „man-in-the-middle”</a><a href="#_ftn1" title="">[2]</a> i pomyślne przesłanie dalej żądania
+uwierzytelnienia do serwera LDAP systemu Windows (takiego jak system z
+uruchomioną usługą AD DS lub AD LDS), którego nie skonfigurowano do wymagania
+podpisywania lub pieczętowania połączeń przychodzących. </p><!-- more --><p>Zabezpieczenia serwera
+katalogowego można znacznie poprawić, konfigurując serwer do odrzucenia
+powiązań LDAP w ramach mechanizmu <a href="https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-ssean/9b1f61c9-c78a-418d-abd8-fd80a2b7d857">Simple Authentication and Security Layer
+(SASL)</a><a href="#_ftn2" title="">[3]</a>, które nie żądają podpisywania
+(weryfikacji integralności) lub do odrzucania <a href="https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/b645c125-a7da-4097-84a1-2fa7cea07714#gt_49986978-abd0-4f77-b04c-c221098e3fef">prostych powiązania LDAP</a><a href="#_ftn3" title="">[4]</a> wykonywanych na połączeniach, w których
+dane są przesyłane w postaci zwykłego tekstu (bez szyfrowania SSL/TLS).
+Mechanizmy SASL mogą zawierać protokoły, takie jak Negotiate, Kerberos, NTLM
+czy Digest. Niepodpisany ruch sieciowy jest podatny na <a href="https://docs.microsoft.com/pl-pl/windows/security/threat-protection/auditing/event-4649">powtórne ataki</a><a href="#_ftn4" title="">[5]</a>, w których intruz przechwytuje próbę
+uwierzytelnienia i wystawienie biletu. Intruz może ponownie wykorzystać bilet
+do podszycia się pod uprawnionego użytkownika. Ponadto niepodpisany ruch
+sieciowy jest podatny na ataki „man-in-the-middle”, w których intruz
+przechwytuje pakiety między klientem a serwerem, zmienia pakiety, a następnie
+przesyła je do serwera. Jeśli taka sytuacji zdarzy się na serwerze LDAP, osoba
+atakująca może spowodować, że serwer będzie podejmować decyzje oparte na
+sfałszowanych żądaniach pochodzących od klienta LDAP.</p><p>W następnych częściach serii pokażę jak wsadowo zweryfikować bieżące ustawienia na kontrolerach domeny, a także metody monitorowania i wsadowej obróbki logów dotyczących (wkrótce niewspieranych) połączeń LDAP. </p><p>Źródła:</p><ul><li><a href="https://www.tumblr.com/edit/189738377893#_ftnref1" title="">[1]</a> Microsoft Guidance for Enabling LDAP Channel Binding and LDAP Signing –  <a href="https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/ADV190023">https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/ADV190023</a> 
+
+</li><li><a href="#_ftnref1" title="">[2]</a> Man
+in the Middle – <a href="https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-sstp/4a6778bc-a4a9-46c6-9120-7493c61f95e5">https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-sstp/4a6778bc-a4a9-46c6-9120-7493c61f95e5</a></li><li><a href="#_ftnref2" title="">[3]</a> SASL
+Authentication – <a href="https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/989e0748-0953-455d-9d37-d08dfbf3998b">https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/989e0748-0953-455d-9d37-d08dfbf3998b</a></li><li><a href="#_ftnref3" title="">[4]</a>
+LDAP simple bind – <a href="https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/b645c125-a7da-4097-84a1-2fa7cea07714#gt_49986978-abd0-4f77-b04c-c221098e3fef">https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/b645c125-a7da-4097-84a1-2fa7cea07714#gt_49986978-abd0-4f77-b04c-c221098e3fef</a></li><li><a href="#_ftnref4" title="">[5]</a> Kerberos
+replay attack – <a href="https://docs.microsoft.com/pl-pl/windows/security/threat-protection/auditing/event-4649">https://docs.microsoft.com/pl-pl/windows/security/threat-protection/auditing/event-4649</a></li></ul>

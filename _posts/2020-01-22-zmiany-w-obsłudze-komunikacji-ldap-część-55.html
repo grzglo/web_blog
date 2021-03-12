@@ -1,0 +1,141 @@
+---
+layout: post
+title: Zmiany w obsłudze komunikacji LDAP - część 5/5
+date: '2020-01-22T22:06:51+01:00'
+tags:
+- ldap
+- windowsserver
+- activedirectory
+- test
+- binding
+- signing
+- ssl
+- tls
+- gssapi
+- sasl
+tumblr_url: https://blog.pfe.academy/post/190408395313/zmiany-w-obs%C5%82udze-komunikacji-ldap-cz%C4%99%C5%9B%C4%87-55
+---
+<p>Artykuł jest ostatnią częścią serii 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+„Zmiany w obsłudze komunikacji LDAP”. Odnośniki do poprzednich części znajdziecie na końcu. Dzisiaj pokażę wam przykłady testowania połączeń z usługą LDAP, po jej utwardzeniu, zgodnie z docelowymi ustawieniami Windows Server po zastosowaniu poprawek zaplanowanych na marzec 2020. </p><h2>Jakich aplikacji użyć, aby wydajnie weryfikować oraz testować stan zabezpieczeń komunikacji LDAP?</h2><p>Podstawowa zasada brzmi, użyj znanego sobie oprogramowania, a to z kilku powodów. Prawie na pewno jest już zainstalowane i dozwolone w firmie. Używaliście go już nie raz, więc interfejs i możliwości są wam znane. Można skupić się na pracy, a nie narzędziu do jej wykonania. </p><p>Jeśli do tej pory nie wykonywaliście takich testów lub po prostu jesteście ciekawi, co polecam, zachęcam do zapoznania się z poniższą listą. </p><p>PowerShell 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+–
+
+
+
+ jeśli chcecie zrobić coś wsadowo lub uruchamiać automatycznie, np. z poziomu platformy do monitorowania, to wybór jest dość oczywisty. Koniecznie zapoznajcie się z dokumentacją <a href="https://social.technet.microsoft.com/wiki/contents/articles/4231.working-with-active-directory-using-powershell-adsi-adapter.aspx">ADSI adaptera</a> oraz przestrzenią nazw 
+
+<a href="https://docs.microsoft.com/en-us/dotnet/api/system.directoryservices?view=netframework-4.8">System.DirectoryServices</a>.</p><p><a href="http://www.ldapadmin.org/">LdapAdmin</a> –
+
+
+
+
+
+darmowy klient oraz narzędzie do administracji katalogami LDAP dla Windows. Pozwala na podstawowe operacje (przeglądanie, wyszukiwania, modyfikację, tworzenie i usuwanie obiektów) oraz bardziej zaawansowane operacje (takie jak kopiowanie i przenoszenie obiektów pomiędzy serwerami).
+
+</p><p><a href="http://ldaptool.sourceforge.net/">
+
+LDAPExplorerTool</a> – wieloplatformowa przeglądarka i edytor LDAP z graficznym interfejsem użytkownika. Program jest testowany przez twórców w systemach Windows i kilku dystrybucjach Linuksa (m.in. Debian, Red Hat).
+
+<br/></p><p><a href="http://jxplorer.org/">
+
+JXplorer</a> –
+
+
+
+wieloplatformowy klient usługi i edytor LDAP napisany w Javie (wymaga JRE). Program jest testowany przez twórców w systemach Windows, Solaris, Linux i OSX, ale gotowe paczki dostępne są także dla HPUX, AIX, BSD i wszystkiego, co uciągnie JRE.  <br/></p><h2>Jak wyglądają scenariusze testów?</h2><p>Testy powinny być miarodajne (pokazywać, że coś działa (w ogóle lub w oczekiwany sposób) lub że nie działa). W przypadku naszego ćwiczenia, testowanie ma na celu potwierdzenie, że nowe utwardzone ustawienia kontrolera domeny pozwalają na bezpieczne oraz blokują niebezpieczne metody komunikacji LDAP.</p><!-- more --><h2>Testy połączeń LDAP</h2><p>Przetestujmy poszczególne rodzaje połączeń wykorzystując jednego z wcześniej opisanych klientów LDAP. Jeśli testy będą powtarzane, wówczas poszczególne konfiguracje połączeń najlepiej zapisać jako szablon, z którego będziemy mogli skorzystać w przyszłości. </p><h3>Logowanie anonimowe (Anonymous)</h3><p>W oknie kreatora połączenia należy wprowadzić adres docelowego kontrolera domeny oraz port (domyślnie jest to port TCP 389) oraz wskazać <i>Anonymous</i> jako docelowy poziom zabezpieczeń dla połączenia. </p><figure data-orig-width="985" data-orig-height="693" class="tmblr-full"><img src="https://64.media.tumblr.com/0614004223706f590b535e899ef7391c/991f1b62e4ba1dcc-e2/s540x810/8e35be4301262f075b4565a6be4c3da25eb92512.png" alt="image" data-orig-width="985" data-orig-height="693"/></figure><p>Połączenie do utwardzonego kontrolera domeny powinno zakończyć się niepowodzeniem. A to dlatego, że wymaga on poprawnego uwierzytelnienia, aby przeglądać zawartość katalogu LDAP. </p><figure data-orig-width="985" data-orig-height="694" class="tmblr-full"><img src="https://64.media.tumblr.com/61b6b5085f940fc0cd71d84dbb73b1dd/991f1b62e4ba1dcc-10/s540x810/15481a2ffae18eaa63ed091b4aac8cdf44698849.png" alt="image" data-orig-width="985" data-orig-height="694"/></figure><p>Pierwszy test zakończony sukcesem. Przeanalizujmy jeszcze ruch sieciowy, co będzie szczególnie użyteczne, gdy klient LDAP (w prawdziwym środowisku) nie oferuje obsługi błędów i wyświetla komunikat w stylu „Połączenie nie powiodło się, skontaktuj się z administratorem”. </p><p>W przypadku dostępu anonimowego, klient bezpośrednio wysyła zapytanie (searchRequest) do wskazanego serwera LDAP. </p><figure data-orig-width="1373" data-orig-height="546" class="tmblr-full"><img src="https://64.media.tumblr.com/97e1dc4c15c84d667a1904073b5316a8/991f1b62e4ba1dcc-d1/s540x810/459fdc1438c055cdbcbb75f38cd38ff22b4d1643.png" alt="image" data-orig-width="1373" data-orig-height="546"/></figure><p>O tym nie może być jednak mowy. Uprawnienie odczytu informacji z katalogu (general read, GR) domyślnie posiadają tylko zalogowani użytkownicy.</p><figure data-orig-width="1369" data-orig-height="625" class="tmblr-full"><img src="https://64.media.tumblr.com/31e0a21953b42e5a3b4dd5a36526d60e/991f1b62e4ba1dcc-fd/s540x810/c8b97ed9a211535ed91e0294f3c3cc2809d43774.png" alt="image" data-orig-width="1369" data-orig-height="625"/></figure><p>Odpowiedź serwera może być tylko odmowna - choć informuje on od razu w czym rzecz (errorMessage 000004DC: LdapError: DSID-0C090A37). Większość monitorów sieciowych posiada wbudowane parsery, na załączonym zrzucie ekranu Wireshark dodaje komentarz (comment: In order to perform this operation a successful bind must be completed on the connection). </p><h3>Proste uwierzytelniania - Simple bind </h3><p>W kreatorze połączenia, ponownie wskazujemy utwardzony kontroler domeny jako cel, wykorzystując przy tym podstawowy port usługi LDAP TCP 389. Wybrany poziom bezpieczeństwa to <i>User + Password</i>, w kreatorze podajemy DN użytkownika oraz jego hasło. </p><figure data-orig-width="979" data-orig-height="690" class="tmblr-full"><img src="https://64.media.tumblr.com/3846d3518fd25cb899783b52ab0dae6d/991f1b62e4ba1dcc-d7/s540x810/d2722f7ec2a49c5ebdbe2afbf84108f30ec3b735.png" alt="image" data-orig-width="979" data-orig-height="690"/></figure><p> I w tym przypadku spodziewamy się zobaczyć błąd połączenia. Klient zostaje poinformowany o konieczności zestawienia połączenia SSL\TLS, aby poświadczenia nie były przesyłane jawnym tekstem. </p><figure data-orig-width="984" data-orig-height="692" class="tmblr-full"><img src="https://64.media.tumblr.com/0a69062878935dd74750cae2311843da/991f1b62e4ba1dcc-44/s540x810/946fda77c8c8b3150b67e472703457a819d28478.png" alt="image" data-orig-width="984" data-orig-height="692"/></figure><p>Zobaczmy jak wygląda komunikacja zarejestrowana podczas próby połączenia w Wiresharku. </p><figure data-orig-width="1370" data-orig-height="760" class="tmblr-full"><img src="https://64.media.tumblr.com/b7d11baa5a7db7c42f7ae42b42ba7ce9/991f1b62e4ba1dcc-7a/s540x810/ef994ff6979371e5c77547d5ce54eead47182ab9.png" alt="image" data-orig-width="1370" data-orig-height="760"/></figure><p>Klient przesłał nazwę użytkownika oraz jego hasło jawnym tekstem, co pozwoliło na przechwycenie jego poświadczeń. </p><p>Jeśli użytkownik posiada istotne uprawnienia w Active Directory lub firmowych aplikacjach, pozyskane w ten sposób poświadczenia mogą zostać wykorzystane bez jego wiedzy.</p><figure data-orig-width="1369" data-orig-height="711" class="tmblr-full"><img src="https://64.media.tumblr.com/4266aa6b2c60de3b6cc749582605ed89/991f1b62e4ba1dcc-eb/s540x810/bf3ed6a31fabba73e6258257140a8e97d8456e01.png" alt="image" data-orig-width="1369" data-orig-height="711"/></figure><p>Serwer odrzucił żądanie oraz wskazał powód swojego zachowania (errorMessage: 00002028: LdapErr: DSID-0C09023C, comment: The server requires binds to turn on integritychecking if SSL\TLS are not already active on the connection).  </p><p class="alert warn">Z tej perspektywy ważne jest, aby <strong>utwardzić nie tylko kontrolery domeny, ale także klientów</strong>. To, że serwer nie akceptuje połączeń, nie znaczy, że klienci nie będą próbować się nimi posługiwać i narażać poświadczenia na podsłuchanie i przechwycenie. </p><h3>Uwierzytelnianie w tunelu SSL/TLS 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+–
+
+
+
+ LDAPS bind</h3><p>Testy połączeń SSL/TLS zaczynamy od weryfikacji obecności poprawnych certyfikatów na kontrolerach domeny. W tym celu możemy posłużyć się skryptem <a href="https://github.com/russelltomkins/Active-Directory/blob/master/DC-TLSandCert-Audit.ps1">Audit-DcTlsCertificate</a>. Skrypt połączyć się z wszystkim dostępnymi kontrolerami domeny na porcie 636, pobierze certyfikaty oraz wyświetli listę w oknie wynikowym (OGV).  <br/></p><p class="code">.\Audit-DcTlsCertificate.ps1</p><figure data-orig-width="858" data-orig-height="250" class="tmblr-full"><img src="https://64.media.tumblr.com/0c5db89f4bee9beae6c89cf755de9344/991f1b62e4ba1dcc-13/s540x810/f33ba63f4dabaf1e3bd11e1a203888acc6b2cdad.png" alt="image" data-orig-width="858" data-orig-height="250"/></figure><p>Kluczowe jest, aby certyfikaty były poprawne (przede wszystkim, aby zgadzała się nazwa serwera, z którym będziemy się łączyć (FQDN) oraz nazwa podmiotu dla którego wystawiono certyfikat (CN) oraz okres ważności (Valid from i Valid to). Zwróćcie też uwagę, by certyfikat obsługiwał obsługę uwierzytelnienia serwera (Server authentication, 1.3.6.1.5.5.7.3.1).</p><figure data-orig-width="856" data-orig-height="166" class="tmblr-full"><img src="https://64.media.tumblr.com/862bf7a97fa3a7460fc65268db8271e4/991f1b62e4ba1dcc-37/s540x810/b37f36378d4c8b9ea60da6c7663f2cb7e516d546.png" alt="image" data-orig-width="856" data-orig-height="166"/></figure><p>Jeśli testy chcemy ograniczyć do pojedynczego serwera (np. tylko testowo utwardzonego kontrolera domeny), możemy użyć skryptu <a href="https://gallery.technet.microsoft.com/scriptcenter/Retreieve-ServerCertFromSoc-baf52fb1">Retrieve-ServerCertFromSocket</a>. Pozwoli pobrać certyfikat z wskazanego kontrolera domeny, a także zweryfikować bezpośrednio na kliencie. <br/></p><p class="code">Retrieve-ServerCertFromSocket pfe-dc1.pfe.academy 636 | Export-Certificate -FilePath C:\temp\test.cer ; start c:\temp\test.cer</p><figure data-orig-width="1030" data-orig-height="387" class="tmblr-full"><img src="https://64.media.tumblr.com/5b8ee802a490ff0336c3dad14017fabf/991f1b62e4ba1dcc-dc/s540x810/d48eb1f2ad7c0bf7388c7ce0277a36c5408b03d5.png" alt="image" data-orig-width="1030" data-orig-height="387"/></figure><p>Test-Certificate $(Retrieve-ServerCertFromSocket pfe-dc1.pfe.academy 636)</p><figure data-orig-width="1035" data-orig-height="83" class="tmblr-full"><img src="https://64.media.tumblr.com/90ac48a064e595f7ec2e7752d8c16643/991f1b62e4ba1dcc-fc/s540x810/5894b7facc71f4608ab58014c18836d5e3a035ea.png" alt="image" data-orig-width="1035" data-orig-height="83"/></figure><p>Windows ufa tylko certyfikatom wydanym przez urzędy, których certyfikaty są zintegrowane z systemem (wbudowane lub zostały doinstalowane, na przykład w czasie dodawanie do domeny Active Directory). </p><figure data-orig-width="855" data-orig-height="159" class="tmblr-full"><img src="https://64.media.tumblr.com/c454ef1bedd26f2a1b6a691b7c7a87ec/991f1b62e4ba1dcc-78/s540x810/16b601c94a83caae3355c68fcbae57b3c5ec3fdb.png" alt="image" data-orig-width="855" data-orig-height="159"/></figure><p>W naszym przypadku, certyfikat pochodzi z zaufanego, wewnątrzorganizacyjnego centrum 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+certyfikatów 
+
+
+
+oraz spełnia pozostałe kryteria. </p><p>Możemy zatem przystąpić do testów połączeń w programie JExplorer. Tutaj jednak czeka nas rozczarowanie, bo aplikacje Java (oraz kilku innych bibliotek lub platform) nie wykorzystują systemowego magazynu certyfikatów. Zatem podczas próby połączenia zobaczmy błąd.</p><figure data-orig-width="1156" data-orig-height="479" class="tmblr-full"><img src="https://64.media.tumblr.com/8a94b1691948149c1f0f8463760d89cf/991f1b62e4ba1dcc-c9/s540x810/3b1398e16008c9e8f0b5a2b326c6e3d88cfb9ab9.png" alt="image" data-orig-width="1156" data-orig-height="479"/></figure><p>Wystarczy dodać certyfikat serwera (np. gdy ten jest samopodpisany (self-signed) lub całego urzędu certyfikatów (np. gdy wewnętrznie dostępne serwery używają certyfikatów wydanych przez organizacyjne CA). </p><p>W tym celu należy przejść do Security &gt; Trusted Servers and CAs, aby w pierwszej kolejności przekonać się o zaufanych certyfikatach (i braku tych związanych z usługą LDAP). </p><figure data-orig-width="827" data-orig-height="382" class="tmblr-full"><img src="https://64.media.tumblr.com/58e92ada80d7cfb7461deb5240ef01dc/991f1b62e4ba1dcc-0f/s540x810/87e21a8c34a8b50a9178a9f40e0d873ebfc4707f.png" alt="image" data-orig-width="827" data-orig-height="382"/></figure><p>A następnie dodać stosowny certyfikat (najlepiej root-ca).</p><figure data-orig-width="978" data-orig-height="659" class="tmblr-full"><img src="https://64.media.tumblr.com/b1c94aa4ea1916efa12f3a45aad43af9/991f1b62e4ba1dcc-d0/s540x810/9e63712651376c1f48cb8670c5593aba28ae525e.png" alt="image" data-orig-width="978" data-orig-height="659"/></figure><p>Jeśli certyfikat pochodzi z zaufanego głównego lub podrzędnego urzędu certyfikatów, odpowiednia informacja znajdzie się w jego właściwościach. </p><figure data-orig-width="896" data-orig-height="337" class="tmblr-full"><img src="https://64.media.tumblr.com/ea48522085f7f82812808c8df01f08da/991f1b62e4ba1dcc-f6/s540x810/5523f5efc2183099640556bc3ab3e84715927914.png" alt="image" data-orig-width="896" data-orig-height="337"/></figure><p>Teraz możemy przejść do właściwych testów połączeń LDAP. </p><p>W kreatorze połączenia wskazujemy utwardzony kontroler domeny na porcie 636 oraz poziom zabezpieczeń <i>SSL + User + Password</i>. </p><figure data-orig-width="984" data-orig-height="693" class="tmblr-full"><img src="https://64.media.tumblr.com/37fb02033892369f5e10f6a6948b3000/991f1b62e4ba1dcc-09/s540x810/3594c7c7f4e7a6a2089a44011d2f1fe2179b0510.png" alt="image" data-orig-width="984" data-orig-height="693"/></figure><p>Nazwa użytkownika oraz hasło w dalszym ciągu przesyłane są tekstem, ale informacje są zenkapsulowane w bezpiecznym tunelu SSL/TLS, przez co nie da się ich podsłuchać w sieci. Połącznie dochodzi do skutku. </p><figure data-orig-width="983" data-orig-height="516" class="tmblr-full"><img src="https://64.media.tumblr.com/4a18e6e659da7320ef5eca9b39bebebe/991f1b62e4ba1dcc-01/s540x810/deeeefe1c8fd563acc4f6a0e786be04ab057277f.png" alt="image" data-orig-width="983" data-orig-height="516"/></figure><p>Rzućmy jeszcze okien na przebieg komunikacji zarejestrowany w Wiresharku. </p><p>W pierwszej kolejności zestawiane jest połączenie TLS. Klient żąda zestawienia sesji, którą należy uzgodnić. Przesyła więc komunikat Client Hello, a w nim pożądana wersję protokołu (TLS 1.2) oraz zestaw wspieranych przez siebie algorytmów kryptograficznych, w postaci uporządkowanej listy (od najbardziej preferowanego).</p><figure data-orig-width="1370" data-orig-height="1081" class="tmblr-full"><img src="https://64.media.tumblr.com/9ab58b29f07f6a6c82f1cabbe0295e38/991f1b62e4ba1dcc-b0/s540x810/7a410d46964da4c363bc6652e9b98d57fafc19ae.png" alt="image" data-orig-width="1370" data-orig-height="1081"/></figure><p>W odpowiedzi na żądanie, serwer wysyła odpowiedź Server Hello dostarczając klientowi klucz publiczny swojego certyfikatu. Pierwsza część komunikacji w tunelu TLS szyfrowana jest asymetrycznie (z wykorzystaniem pary kluczy, prywatnego oraz publicznego - komunikaty zaszyfrowane jednym mogą być odszyfrowane tylko drugim). </p><figure data-orig-width="1368" data-orig-height="1070" class="tmblr-full"><img src="https://64.media.tumblr.com/b6fc089f15f5ed2ee777524819458038/991f1b62e4ba1dcc-28/s540x810/41ad4778fbd1875e39089997f6f36d83d9cc5239.png" alt="image" data-orig-width="1368" data-orig-height="1070"/></figure><p>Kiedy obie strony mogą wymienić się kluczem, sesja przechodzi na szyfrowanie symetryczne (co zmniejsza zużycie czasu procesora po obu stronach komunikacji). </p><figure data-orig-width="1371" data-orig-height="1083" class="tmblr-full"><img src="https://64.media.tumblr.com/049a0d2c6fc94fdc4dc5a2b3176c9015/991f1b62e4ba1dcc-e0/s540x810/cdf84b6cd45656c765f21435bd9e31dba1de5d58.png" alt="image" data-orig-width="1371" data-orig-height="1083"/></figure><p>Dalsza część komunikacji odbywa się w przygotowanym tunelu SSL\TLS. </p><figure data-orig-width="1371" data-orig-height="1078" class="tmblr-full"><img src="https://64.media.tumblr.com/9a27c31057c8b6984b6f3989e0b538e5/991f1b62e4ba1dcc-8d/s540x810/aefa9bb3298727e7da2e0551219200e833f9c198.png" alt="image" data-orig-width="1371" data-orig-height="1078"/></figure><p>Poświadczeń, zapytań oraz odpowiedzi LDAP nie da się podsłuchać. Integralność i poufność komunikacji są zapewnione dzięki opakowaniu połączenia protokołu LDAP w tunelu TLS.</p><figure data-orig-width="1369" data-orig-height="712" class="tmblr-full"><img src="https://64.media.tumblr.com/8c4fc3b91c05a3308c01aa29baa75592/991f1b62e4ba1dcc-2d/s540x810/fae62cf552305d33a19affd12ec97c104bbb88c0.png" alt="image" data-orig-width="1369" data-orig-height="712"/></figure><h3>Uwierzytelnianie z użyciem bibliotek SASL </h3><p>Simple Authentication and Security Layer (SASL) to metoda dodania warstwy uwierzytelniania użytkownika m.in. dla protokołu LDAP. Ciężar uwierzytelniania oraz zabezpieczania komunikacji LDAP przesuwa się na jeden z wspieranych przez SASL mechanizmów. </p><p>W pierwszej kolejności sprawdźmy jakie mechanizmy SASL są obsługiwane przez Active Directory. </p><p class="code">Get-ADRootDSE | select rootDomainNamingContext,supportedSASLMechanisms |ft -AutoSize</p><figure data-orig-width="778" data-orig-height="103" class="tmblr-full"><img src="https://64.media.tumblr.com/f980e9a326f10d7bd6cba680d5d85704/991f1b62e4ba1dcc-5b/s540x810/8c2e645c34047fa3701cb79523a567fca1896bee.png" alt="image" data-orig-width="778" data-orig-height="103"/></figure><p>Wygląda obiecująco, sprawdźmy, z czego może skorzystać klient. </p><figure data-orig-width="981" data-orig-height="580" class="tmblr-full"><img src="https://64.media.tumblr.com/55569fd92e73add434dd46a4d5413d5d/991f1b62e4ba1dcc-46/s540x810/b7d5caad6be15e4149272dc735d96284b9ff2109.png" alt="image" data-orig-width="981" data-orig-height="580"/></figure><p>Generic Security Service Application Program Interface (GSSAPI, czasami nazywany też GSS-API) to interfejs programistyczny pozwalający aplikacjom uzyskiwać dostęp do usług bezpieczeństwa, za pośrednictwem których realizowane jest uwierzytelniania, np. z użyciem protokołu Kerberos.</p><p>Oznacza to, że nie musimy tunelować połącznia i używamy standardowego portu 389. </p><p>Po wytypowaniu tego poziomu zabezpieczeń w kliencie, otrzymujemy pytanie o nazwę użytkownika oraz jego hasło. Posłużą one do pozyskania biletów kerberosowych. </p><figure data-orig-width="843" data-orig-height="407" class="tmblr-full"><img src="https://64.media.tumblr.com/d4f0c8f3dfd29fa1b3c7d2d7879014cb/991f1b62e4ba1dcc-fc/s540x810/1ad3421e6baa49f6ecf9f0413c21317dbaefe7a1.png" alt="image" data-orig-width="843" data-orig-height="407"/></figure><p>Utwardzony kontroler domeny bez problemowo obsługuje żądanie klienta.</p><figure data-orig-width="980" data-orig-height="322" class="tmblr-full"><img src="https://64.media.tumblr.com/ff413f2ae5f205b7c7b6c24ae0d8038d/991f1b62e4ba1dcc-00/s540x810/01f9370b9302a8805ca56c07adafc6f11e7a8d9c.png" alt="image" data-orig-width="980" data-orig-height="322"/></figure><p>Tutaj przebieg komunikacji sieciowej jest zdecydowanie najciekawszy, rzućmy okiem na ruch przechwycony za pomocą Wireshark. </p><p>Na początek klient ustala właściwy serwer, który obsłuży uwierzytelnianie domenowe. W tym celu odszukuje za pomocą zapytań dns-owych właściwy dla swojej podsieci kontroler domeny (rekord SRV dla nazwy _kerberos._udp.pfe.academy). </p><figure data-orig-width="1914" data-orig-height="1159" class="tmblr-full"><img src="https://64.media.tumblr.com/e96b095bd373d0b81f8536a86938683a/991f1b62e4ba1dcc-bb/s540x810/ff2e1e19e8bee3790ebf3c6994c6b6b49ee75885.png" alt="image" data-orig-width="1914" data-orig-height="1159"/></figure><p>Następnie wysyła żądanie uwierzytelnienia użytkownika, co pozwoli pozyskać bazowy bilet kerberosowy (ticket granding tickets, TGT). </p><figure data-orig-width="1914" data-orig-height="1157" class="tmblr-full"><img src="https://64.media.tumblr.com/d8c0c4d5286780d9f0699f6997e56983/991f1b62e4ba1dcc-4f/s540x810/3c7412587e694de396469ab94c4fe8a9993dcfd0.png" alt="image" data-orig-width="1914" data-orig-height="1157"/></figure><p>Poświadczenia użytkownika nie są wysyłane tekstowo, zamiast tego (w dużym uproszczeniu) klient szyfruje skrótem swojego hasła informację, którą z użyciem tego samego skrótu zapisanego w bazie AD kontroler rozszyfrowuje. </p><figure data-orig-width="1916" data-orig-height="1143" class="tmblr-full"><img src="https://64.media.tumblr.com/4344bb40ce8f54673721978812a7cbf6/991f1b62e4ba1dcc-7b/s540x810/80bda518f4bb25f9b3d9238347df69dc4c945987.png" alt="image" data-orig-width="1916" data-orig-height="1143"/></figure><p>Jeśli użytkownik podał poprawne hasło (udało się z niego wyliczyć właściwy skrót do zaszyfrowania komunikatu), kontroler domeny wydaje tiket TGT.</p><figure data-orig-width="1916" data-orig-height="1158" class="tmblr-full"><img src="https://64.media.tumblr.com/6d10651146f67ecbb48b157741e6081b/991f1b62e4ba1dcc-51/s540x810/edaec9ed9eb1f00d48b162e2c584a8501cde8d8e.png" alt="image" data-orig-width="1916" data-orig-height="1158"/></figure><p>To jednak dopiero połowa drogi, użytkownik jest uwierzytelniony w domenie. Tymczasem usiłuje dostać 
+
+się 
+
+do konkretnej usługi na kontrolerze domeny. W tym celu musi zażądać od kontrolera domeny tiketu TGS. </p><figure data-orig-width="1917" data-orig-height="1158" class="tmblr-full"><img src="https://64.media.tumblr.com/995ac8e504bc26b75b645cdf954b3a99/991f1b62e4ba1dcc-86/s540x810/8d0c0c452253f319465b708ee6c5114a3109128e.png" alt="image" data-orig-width="1917" data-orig-height="1158"/></figure><p>W żądaniu klient jasno precyzuje nazwę usługi i serwer, co pozwala wydać poprawny bilet, zaszyfrowany skrótem hasła wskazanego serwera, tak aby tylko on mógł otworzyć jego zawartość.</p><figure data-orig-width="1908" data-orig-height="1157" class="tmblr-full"><img src="https://64.media.tumblr.com/3d9a833ad0292192eec45181e4765f76/991f1b62e4ba1dcc-76/s540x810/ed986625738db040f6a250114f9ec35868276b26.png" alt="image" data-orig-width="1908" data-orig-height="1157"/></figure><p>Dopiero teraz klient jest uzbrojony i żąda uwierzytelnienia w usłudze LDAP z użycie posiadanego już biletu. </p><figure data-orig-width="1913" data-orig-height="1154" class="tmblr-full"><img src="https://64.media.tumblr.com/ef8d14cf8fd88c0a498fe6a7cd250d6e/991f1b62e4ba1dcc-7a/s540x810/68fc52a6fb29a167d04d2a1b8f496d11fce5cd95.png" alt="image" data-orig-width="1913" data-orig-height="1154"/></figure><p>Kontroler domeny poprawnie obsługuje żądanie, a nazwa użytkownika
+
+ oraz członkostwo w grupach zabezpieczeń
+
+ zawarte w tikecie TGS wyznaczają kontekst po stronie serwera LDAP.</p><figure data-orig-width="1915" data-orig-height="1162" class="tmblr-full"><img src="https://64.media.tumblr.com/269bd10bb38015a11a35efebc95dc24e/991f1b62e4ba1dcc-12/s540x810/ff2cee7dc31c89d3737033b7fe21725ed907b978.png" alt="image" data-orig-width="1915" data-orig-height="1162"/></figure><p>Bilety kerberosowe pozyskane przez oprogramowanie, które wykorzystuje biblioteki systemowe można podejrzeć za pomocą programu klist. </p><p class="code">klist</p><figure data-orig-width="860" data-orig-height="457" class="tmblr-full"><img src="https://64.media.tumblr.com/0a718010585f7f1bea0386892113963d/991f1b62e4ba1dcc-d6/s540x810/42b3aee0103020e9a3af112ce30145ac0a181f23.png" alt="image" data-orig-width="860" data-orig-height="457"/></figure><p>Pamiętajcie, że raz otrzymane bilety mają określoną ważność i przy następnym połączeniu do tego samego serwera LDAP nie będzie konieczności ich ponownego pozyskania. </p><p>Jeśli ominęły was poprzednie części z serii poniżej znajdziecie odnośniki. </p><p><a href="https://blog.pfe.academy/post/189738377893/zmiany-w-obs%C5%82udze-komunikacji-ldap-cz%C4%99%C5%9B%C4%87-15">
+
+</a><a href="https://blog.pfe.academy/post/189738377893/zmiany-w-obs%C5%82udze-komunikacji-ldap-cz%C4%99%C5%9B%C4%87-15">Zmiany w obsłudze komunikacji LDAP - część 1/5</a></p><p>
+
+<a href="https://blog.pfe.academy/post/189760954308/zmiany-w-obs%C5%82udze-komunikacji-ldap-cz%C4%99%C5%9B%C4%87-25">Zmiany w obsłudze komunikacji LDAP - część 2/5</a></p><p>
+
+<a href="https://blog.pfe.academy/post/190123258903/zmiany-w-domy%C5%9Blnych-ustawieniach-komunikacji-ldap">Zmiany w domyślnych ustawieniach komunikacji LDAP</a> (PDF) - część 3/5<br/></p><p>
+
+<a href="https://blog.pfe.academy/post/190386430368/prezentacja-na-temat-zakresu-zmian-w-domy%C5%9Blnych">Zmiany w domyślnych ustawieniach komunikacji LDAP</a> (wideo) - część 4/5
+
+</p><p>
+Ma href=&ldquo;https://blog.pfe.academy/post/190408395313/zmiany-w-obs%C5%82udze-komunikacji-ldap-cz%C4%99%C5%9B%C4%87-55&rdquo;&gt;Zmiany w obsłudze komunikacji LDAP - część 5/5</p><p>
+
+Udanych testów! 
+
+<br/></p>

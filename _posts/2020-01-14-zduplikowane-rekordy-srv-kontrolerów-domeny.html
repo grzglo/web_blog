@@ -1,0 +1,239 @@
+---
+layout: post
+title: Zduplikowane rekordy SRV kontrolerów domeny
+date: '2020-01-14T19:46:00+01:00'
+tags:
+- microsoft
+- activedirectory
+- dns
+- workaround
+- case-sensitive srv records
+- windowsserver
+tumblr_url: https://blog.pfe.academy/post/190257129623/zduplikowane-rekordy-srv-kontroler%C3%B3w-domeny
+---
+<p>W Windows Server 2016 i nowszych usługa serwera nazw (DNS) wspiera rejestrację rekordów SRV uwzględniając wielkość liter w nazwie hosta (case-sensitive). O czym wiele osób przekonało się wkrótce po wprowadzeniu nowej wersji systemu operacyjnego do środowiska Active Directory. </p><p>
+
+Kontrolery domeny działające pod kontrolą systemu Windows Server 2016 lub nowszych, których nazwy zawierają jedną lub więcej wielkich liter w nazwie, mogą rejestrować rekordy SRV zawierające tylko małe litery, gdy usługa serwera nazw, z której korzystają jest uruchomiona w systemie Windows Server 2012 R2 lub starszym, a dodatkowo rekordy zawierające mieszane lub wyłącznie wielkie literami, gdy serwer nazw jest uruchomiony na Windows Server 2016 lub nowszym. <br/></p><p>Powodowane jest to obsługą rozróżniania wielkości liter w przesłanym w żądaniu rejestracji informacjach RDATA do serwera DNS.<br/></p><h2>Czy zduplikowane rekordy mogą być szkodliwe?</h2><p>W większości wypadków nie będzie to miało większego wpływu na dostępność usługi ani wydajność kontrolerów domeny. Niemniej te kontrolery domeny, które zarejestrują lokatory usług podwójnie będą występować dwukrotnie częściej na liście serwerów przy zapytania klientów (więcej o <a href="https://docs.microsoft.com/en-us/archive/blogs/arnaud_jumelet/domain-controller-locator-an-overview">mechniźmie DC Locator</a>). To z kolei może oznaczać nadmierną utylizację serwerów z powielonymi rekordami, nierównomierny rozkład klientów oraz generować opóźnia w obsłudze żądań klientów domeny.</p><p>Poniższy zrzut ekranu prezentuje zduplikowane rekordy SRV _kerberos zarejestrowane przez kontroler domeny o nazwie PFE-DC1 (zawiera wielkie litery). </p><figure data-orig-width="1109" data-orig-height="467" class="tmblr-full"><img src="https://64.media.tumblr.com/09b569f7e6777bd4e99362cbbbc03e6e/d289e853c6a82842-33/s540x810/4a44561affaf57bae1aa255cb6cd0665000e3bba.png" alt="image" data-orig-width="1109" data-orig-height="467"/></figure><p>Kolejny przykład zawiera rekordy SRV _ldap zarejestrowane przez ten sam kontroler domeny. </p><figure data-orig-width="1232" data-orig-height="433" class="tmblr-full"><img src="https://64.media.tumblr.com/7655f66475e955b60ebd63bb3ca41f7b/d289e853c6a82842-de/s540x810/75bfaed9d691d9eaa9edf3e087187e7bd255de32.png" alt="image" data-orig-width="1232" data-orig-height="433"/></figure><p>Przyznacie, że sprawa wygląda nieciekawie? Co w tej sytuacji zrobić? </p><p>Powyższe zachowanie serwera DNS, na którym rejestrowany lub odświeżany jest rekord jest poprawnym zachowaniem dla Windows Server 2016 i nowszych. Zatem jest to “problem”, a nie problem. Klienci dysponujący wsparciem mogą otworzyć zgłoszenie i otrzymają prywatną poprawkę (private fix).  </p><p>Docelowo, w marcowym zbiorczym pakiecie poprawek oraz towarzyszącym mu wydaniu szablonów administracyjnych zasad grup znajdzie się nowe ustawienie, które pozwoli zablokować rejestrację zdublowanych rekordów.</p><p>Nowe ustawienie dostępne będzie w następującej ścieżce: </p><p>Computer Configuration\Policies\Administrative Templates\System\Net Logon\DC Locator DNS Records\Use lowercase DNS host names when registering domain controller SRV records</p><p>I będzie stosowane domyślnie (czyli nawet wówczas, gdy nie będzie skonfigurowane (Not configured)). </p><p>Do tego czasu zalecana jest zmiana nazwy kontrolerów domeny, na taką która zawierać będzie tylko małe litery (tak, wspieramy to, choć w niektórych wypadkach należy pamiętać o <a href="https://support.microsoft.com/en-hk/help/2001271/domain-controller-rename-does-not-rename-all-ad-dfsr-sysvol-objects">dodatkowych czynnościach</a>). Przy okazji warto zaznajomić się z dokumentacją, w pierwszej kolejności polecam artykuł <a href="https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/computer-naming">Computer Naming</a>, a następnie <a href="https://support.microsoft.com/en-us/help/909264/naming-conventions-in-active-directory-for-computers-domains-sites-and">Naming conventions in Active Directory</a>.</p><p> A co z pozostałościami? Jeśli zgodnie z rekomendacjami stosujecie automatyczne czyszczenie stref z przestarzałych rekordów (<a href="https://social.technet.microsoft.com/wiki/contents/articles/21724.how-dns-aging-and-scavenging-works.aspx">scavenging</a>), rekordy zostaną usunięte automatycznie. </p><figure data-orig-width="1508" data-orig-height="564" class="tmblr-full"><img src="https://64.media.tumblr.com/31124007e08364584650dc8d6bbb08da/d289e853c6a82842-54/s540x810/bc3f2be70aefc32e82a40e09cadad4ee0b1b0a9d.png" alt="image" data-orig-width="1508" data-orig-height="564"/></figure><p>Jeśli nie stosujecie scavenging lub nie chcecie czekać na wyniki jego działania, możecie usunąć pozostałości samodzielnie. W dalszej części opiszę jak skryptowo wylistować oraz usunąć rzeczone zduplikowane rekordy. </p><h2>Jak sprawdzić jakie oraz ile rekordów SRV w mojej domenie zarejestrowano dla kontrolerów domeny z nazwami zawierającymi wielkie litery? </h2><p>Na potrzeby tego ćwiczenia przygotowałem skrypt PowerShell, który pozwala zidentyfikować rekordy SRV w strefie 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+funkcjonalnej 
+
+
+
+Active Directory (<a href="https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/7fcdce70-5205-44d6-9c3a-260e616a2f04">_msdcs</a>). Skrypt można pobrać z mojego <a href="https://github.com/grzglo/">repozytorium </a>lub skopiować poniżej. </p><pre>&lt;# 
+.SYNOPSIS 
+Get-UppercaseDomainSrvRecords_v1.ps1 - Finds SRV records with upper-case letters in name registered under _msdcs.  
+ 
+.DESCRIPTION  
+This script will locate your Active Directory integrated DNS servers and find SRV records with upper-case letters in name registered under _msdcs. 
+ 
+.OUTPUTS 
+Object, allows sorting, filtering and pipe output date.  
+ 
+.COPYRIGHT
+Grzegorz Glogowski - Microsoft Corporation 
+
+.NOTES 
+This script is provided "AS IS" with no warranties and confers no rights.
+ 
+Change Log 
+V1.00, 20200112 - Initial version
+#&gt; 
+
+#Clear screen, useful when run in ISE
+cls
+
+&lt;#
+#Set up domain specification, borrowed from PyroTek3
+#https://github.com/PyroTek3/PowerShell-AD-Recon/blob/master/Find-PSServiceAccounts
+        if(-not $Domain)
+        {
+            $ADDomainInfo = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
+            $Domain = $ADDomainInfo.Name
+        }
+#&gt;
+
+#Get Active Directory forest and domain information
+$forest = Get-ADForest
+$domain = Get-ADDomain
+
+#Find all DCs/DNS servers
+$dns = (Resolve-DnsName $($domain.DNSRoot) -type NS | ? {$_.type -eq "A"}).Name
+
+&lt;#Alternative way to get DNS servers (LDAP query) - Windows Server 2008 R2 and older
+
+#Find DNS servers
+#https://social.technet.microsoft.com/wiki/contents/articles/18996.active-directory-powershell-script-to-list-all-spns-used.aspx
+
+$search = New-Object DirectoryServices.DirectorySearcher([ADSI]"")
+$search.filter = "(servicePrincipalName=DNS*)"
+$searchbase = "OU=Domain Controllers,"+$($domain.DistinguishedName)
+$results = $search.Findall() | ?{ $_.path -like $searchbase }
+$results = $search.Findall()
+$dns = $results.Properties.dnshostname
+
+#&gt;
+
+#$dcs = $domain.ReplicaDirectoryServers
+$rootzone = $domain.DNSRoot
+$msdcszone = "_msdcs." + $rootzone
+
+#Get filtered set of SRV records from _msdcs
+$dnsrecords = Get-DnsServerResourceRecord -ZoneName $msdcszone | Where-Object {$_.RecordType -ne "NS" -and $_.RecordType -ne "SOA" -and $_.RecordType -ne "CNAME" -and $_.RecordType -ne "A" }
+#Get filtered set of SRV records from _msdcs with upper-case letters
+#$dnsrecords = Get-DnsServerResourceRecord -ZoneName $msdcszone | Where-Object {$_.RecordType -ne "NS" -and $_.RecordType -ne "SOA" -and $_.RecordType -ne "CNAME" -and $_.RecordType -ne "A" -and $_.RecordData.DomainName -cmatch '[A-Z]' }
+
+#Initialize the array
+$OutputObj = @()
+
+ForEach ($rr in $dnsrecords) {
+     $name = $rr.HostName
+     $type = $rr.RecordType
+     $ttl = $rr.TimeToLive
+     $created = $rr.Timestamp
+     #$data = $rr.RecordData.DomainName 
+     #$data = $rr.RecordData | select DomainName -ExpandProperty DomainName | Out-String
+     $data = $rr.RecordData | select DomainName -ExpandProperty DomainName
+     $uppercase = $data -cmatch '[A-Z]'   
+     
+    $OutputObj += New-Object -TypeName PSobject -Property @{
+    Name = $name
+    Type = $type
+    TTL = $ttl
+    Created = $created
+    Data = $data
+    CaseSensitive = $uppercase
+    }
+
+   }
+
+#Get Active Directory sites
+$sites = ([System.DirectoryServices.ActiveDirectory.Forest]::GetCurrentForest().Sites).Name
+
+#Divide output into generic and site-specific SRV records with upper-case letters 
+foreach ($site in $sites) {
+$currentpath = "_tcp." + $($site) + "._sites.dc." + $($msdcszone) -replace " ",""
+#Write-Host "Records with UPPER-CASE in: " $currentpath.ToLower() "`r`n" -ForegroundColor DarkYellow
+Write-Host "Records with UPPER-CASE in" $site "site container `r`n" -ForegroundColor DarkYellow
+$OutputObj | where {$_.Name -match $site -and $_.Case -eq $true} | select Name,Data | Format-Table -AutoSize
+}
+Write-Host "Records with UPPER-CASE in generic containers `r`n" -ForegroundColor DarkYellow
+$OutputObj | where {$_.Name -notmatch "._Sites." -and $_.Case -eq $true}| select Name,Data | Format-Table -AutoSize
+
+#EOF
+</pre><p>Powyższy skrypt automatycznie wyświetla wyniki z podziałem na kontenery, w których znajdują się wykryte rekordy z wielkimi literami w nazwie. </p><figure data-orig-width="881" data-orig-height="597" class="tmblr-full"><img src="https://64.media.tumblr.com/5959ccc6f421086dd914c143b2d19b3a/d289e853c6a82842-3e/s540x810/7484feb09e6af8e23e60a2eb56f5b47b78c4180b.png" alt="image" data-orig-width="881" data-orig-height="597"/></figure><p>Jeśli na wynika potrzebujecie wykonać sortowanie, filtrowanie lub chcecie je przesłać na wejście kolejnego polecenia, należy użyć następującego kodu.</p><pre>&lt;# 
+.SYNOPSIS 
+Get-UppercaseDomainSrvRecords_v2.ps1 - Finds SRV records with upper-case letters in name registered under _msdcs.  
+ 
+.DESCRIPTION  
+This script will locate your Active Directory integrated DNS servers and find SRV records with upper-case letters in name registered under _msdcs. 
+ 
+.OUTPUTS 
+Object, allows sorting, filtering and pipe output date.  
+ 
+.COPYRIGHT
+Grzegorz Glogowski - Microsoft Corporation 
+
+.NOTES 
+This script is provided "AS IS" with no warranties and confers no rights.
+ 
+Change Log 
+V1.00, 20200112 - Initial version
+#&gt; 
+
+#Clear screen, useful when run in ISE
+#cls
+
+&lt;#
+#Set up domain specification, borrowed from PyroTek3
+#https://github.com/PyroTek3/PowerShell-AD-Recon/blob/master/Find-PSServiceAccounts
+        if(-not $Domain)
+        {
+            $ADDomainInfo = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
+            $Domain = $ADDomainInfo.Name
+        }
+#&gt;
+
+#Get Active Directory forest and domain information
+$forest = Get-ADForest
+$domain = Get-ADDomain
+
+#Find all DCs/DNS servers
+$dns = (Resolve-DnsName $($domain.DNSRoot) -type NS | ? {$_.type -eq "A"}).Name
+
+&lt;#Alternative way to get DNS servers (LDAP query) - Windows Server 2008 R2 and older
+
+#Find DNS servers
+#https://social.technet.microsoft.com/wiki/contents/articles/18996.active-directory-powershell-script-to-list-all-spns-used.aspx
+
+$search = New-Object DirectoryServices.DirectorySearcher([ADSI]"")
+$search.filter = "(servicePrincipalName=DNS*)"
+$searchbase = "OU=Domain Controllers,"+$($domain.DistinguishedName)
+$results = $search.Findall() | ?{ $_.path -like $searchbase }
+$results = $search.Findall()
+$dns = $results.Properties.dnshostname
+
+#&gt;
+
+#$dcs = $domain.ReplicaDirectoryServers
+$rootzone = $domain.DNSRoot
+$msdcszone = "_msdcs." + $rootzone
+
+#Get filtered set of SRV records from _msdcs
+$dnsrecords = Get-DnsServerResourceRecord -ZoneName $msdcszone | Where-Object {$_.RecordType -ne "NS" -and $_.RecordType -ne "SOA" -and $_.RecordType -ne "CNAME" -and $_.RecordType -ne "A" }
+#Get filtered set of SRV records from _msdcs with upper-case letters
+#$dnsrecords = Get-DnsServerResourceRecord -ZoneName $msdcszone | Where-Object {$_.RecordType -ne "NS" -and $_.RecordType -ne "SOA" -and $_.RecordType -ne "CNAME" -and $_.RecordType -ne "A" -and $_.RecordData.DomainName -cmatch '[A-Z]' }
+
+#Initialize the array
+$OutputObj = @()
+
+ForEach ($rr in $dnsrecords) {
+     $name = $rr.HostName
+     $type = $rr.RecordType
+     $ttl = $rr.TimeToLive
+     $created = $rr.Timestamp
+     #$data = $rr.RecordData.DomainName 
+     #$data = $rr.RecordData | select DomainName -ExpandProperty DomainName | Out-String
+     $data = $rr.RecordData | select DomainName -ExpandProperty DomainName
+     $uppercase = $data -cmatch '[A-Z]'   
+     
+    $OutputObj += New-Object -TypeName PSobject -Property @{
+    Name = $name
+    Type = $type
+    TTL = $ttl
+    Created = $created
+    Data = $data
+    CaseSensitive = $uppercase
+    }
+
+   }
+
+#Get Active Directory sites
+$sites = ([System.DirectoryServices.ActiveDirectory.Forest]::GetCurrentForest().Sites).Name
+
+#Divide output into generic and site-specific SRV records with upper-case letters 
+foreach ($site in $sites) {
+$currentpath = "_tcp." + $($site) + "._sites.dc." + $($msdcszone) -replace " ",""
+#Write-Host "Records with UPPER-CASE in: " $currentpath.ToLower() "`r`n" -ForegroundColor Yellow
+Write-Host "Records with UPPER-CASE in" $site "site container `r`n" -ForegroundColor Yellow
+$OutputObj | where {$_.Name -match $site -and $_.CaseSensitive -eq $true} | select Name,Data | Format-Table -AutoSize
+}
+Write-Host "Records with UPPER-CASE in generic containers `r`n" -ForegroundColor Yellow
+$OutputObj | where {$_.Name -notmatch "._Sites." -and $_.CaseSensitive -eq $true}| select Name,Data | Format-Table -AutoSize
+
+#EOF
+</pre><p>Wówczas, sami zdecydujecie o tym, co dalej zrobić z wykrytymi rekordami. </p><figure data-orig-width="1035" data-orig-height="262" class="tmblr-full"><img src="https://64.media.tumblr.com/96c3a2d7aa880b5c1b88c2787ec6285c/d289e853c6a82842-06/s540x810/12cfb1253d9105c3acc723913101ad20ce8d117f.png" alt="image" data-orig-width="1035" data-orig-height="262"/></figure><p>Uwaga:  Do poprawnego działania Active Directory niezbędne są odpowiednie strefy oraz rekordy DNS. Zalecam dużą dozę ostrożności i proszę nie róbcie niczego pochopnie, aby nie musieć naprawiać lub odzyskiwać środowiska! </p>

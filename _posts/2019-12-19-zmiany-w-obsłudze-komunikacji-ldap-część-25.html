@@ -1,0 +1,49 @@
+---
+layout: post
+title: Zmiany w obsłudze komunikacji LDAP - część 2/5
+date: '2019-12-19T20:39:45+01:00'
+tags:
+- microsoft
+- adds
+- adlds
+- ldap
+- authentication
+- tls
+- integrity
+tumblr_url: https://blog.pfe.academy/post/189760954308/zmiany-w-obs%C5%82udze-komunikacji-ldap-cz%C4%99%C5%9B%C4%87-25
+---
+<p>W poprzednim wpisie z serii <a href="https://blog.pfe.academy/post/189738377893/zmiany-w-obs%C5%82udze-komunikacji-ldap-cz%C4%99%C5%9B%C4%87-15">Zmiany w obsłudze komunikacji LDAP</a> opisałem zmiany w rekomendacjach dotyczących zabezpieczenia komunikacji, jakie powinni zastosować administratorzy środowisk Active Directory Lightweight Directory Services (AD DS) oraz 
+
+ Active Directory Lightweight Directory Services (AD LDS).</p><p>Dzisiaj zaprezentuję jak szybko i wsadowo (na wszystkich kontrolerach domeny w środowisku) odczytać informacje o konfiguracji protokołu LDAP w oparciu o rejestr systemowy. </p>
+ 
+<!-- HTML generated using hilite.me --><div style="background: #f8f8f8; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #19177C">$DCs</span> = <span style="color: #008000">Get-ADDomainController</span> -Filter *
+
+ForEach (<span style="color: #19177C">$DC</span> in <span style="color: #19177C">$DCs</span>)
+{
+    <span style="color: #BA2121">'*'</span> * 40            
+    <span style="color: #19177C">$DC</span>.HostName            
+    <span style="color: #008000">Invoke-Command</span> -ComputerName <span style="color: #19177C">$DC</span>.HostName -ScriptBlock {            
+        <span style="color: #19177C">$LdapEnforceChannelBinding</span>=(<span style="color: #008000">Get-ItemProperty</span> -Path Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Parameters -Name <span style="color: #BA2121">"LdapEnforceChannelBinding"</span> -ErrorAction SilentlyContinue | select <span style="color: #BA2121">"LdapEnforceChannelBinding"</span> | fl | <span style="color: #008000">Out-String</span>) <span style="color: #666666">-Replace</span> <span style="color: #BA2121">"`n"</span>,<span style="color: #BA2121">""</span> <span style="color: #666666">-replace</span> <span style="color: #BA2121">"`r"</span>,<span style="color: #BA2121">""</span> <span style="color: #666666">-replace</span> <span style="color: #BA2121">" :"</span>,<span style="color: #BA2121">":"</span>;if (!<span style="color: #19177C">$LdapEnforceChannelBinding</span>) { <span style="color: #BA2121">"LdapEnforceChannelBinding: (Brak)"</span> } else {<span style="color: #19177C">$LdapEnforceChannelBinding</span>}  
+        <span style="color: #19177C">$LDAPServerIntegrity</span>=(<span style="color: #008000">Get-ItemProperty</span> -Path Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Parameters -Name <span style="color: #BA2121">"LDAPServerIntegrity"</span> -ErrorAction SilentlyContinue | select <span style="color: #BA2121">"LDAPServerIntegrity"</span> | fl | <span style="color: #008000">Out-String</span>) <span style="color: #666666">-Replace</span> <span style="color: #BA2121">"`n"</span>,<span style="color: #BA2121">""</span> <span style="color: #666666">-replace</span> <span style="color: #BA2121">"`r"</span>,<span style="color: #BA2121">""</span> <span style="color: #666666">-replace</span> <span style="color: #BA2121">" :"</span>,<span style="color: #BA2121">":"</span>;if (!<span style="color: #19177C">$LDAPServerIntegrity</span>) { <span style="color: #BA2121">"LDAPServerIntegrity: (Brak)"</span> } else {<span style="color: #19177C">$LDAPServerIntegrity</span>}
+        <span style="color: #19177C">$LDAPClientIntegrity</span>=(<span style="color: #008000">Get-ItemProperty</span> -Path Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NTDS\Parameters -Name <span style="color: #BA2121">"LDAPClientIntegrity"</span> -ErrorAction SilentlyContinue | select <span style="color: #BA2121">"LDAPClientIntegrity"</span> | fl | <span style="color: #008000">Out-String</span>) <span style="color: #666666">-Replace</span> <span style="color: #BA2121">"`n"</span>,<span style="color: #BA2121">""</span> <span style="color: #666666">-replace</span> <span style="color: #BA2121">"`r"</span>,<span style="color: #BA2121">""</span> <span style="color: #666666">-replace</span> <span style="color: #BA2121">" :"</span>,<span style="color: #BA2121">":"</span>;if (!<span style="color: #19177C">$LDAPClientIntegrity</span>) { <span style="color: #BA2121">"LDAPClientIntegrity: (Brak)"</span> } else {<span style="color: #19177C">$LDAPClientIntegrity</span>}
+    }            
+}
+</pre></td></tr></table></div>
+
+
+<p>Skrypt zwraca wartości ustawień kluczy
+
+LdapEnforceChannelBinding, 
+
+LDAPServerIntegrity oraz LDAPClientIntegrity z wszystkich kontrolerów domeny, z którymi udało się skomunikować. </p><figure class="tmblr-full" data-orig-height="152" data-orig-width="513"><img src="https://64.media.tumblr.com/0241368eb39f25f0bc4f98d085dc8481/af860ada72f73957-39/s540x810/680705ded6b7310639ecae6e58ce7e0775652d39.png" data-orig-height="152" data-orig-width="513" alt="image"/></figure><p>W następnej części pokażę, jak w praktyczny sposób sprawdzić czy w naszym środowisku występują połączenia, które po zmianach w konfiguracji protokołu LDAP będą skutkowały odmową dostępu do katalogu i odrzucaniem połączeń. </p>
